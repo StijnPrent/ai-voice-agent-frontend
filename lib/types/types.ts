@@ -29,3 +29,9 @@ export interface ReplyStyle {
     createdAt: Date,
     updatedAt: Date,
 }
+
+export interface Update {
+    update: string;
+    createdAt: Date;
+    status: string;
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import {useEffect, useState} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,15 +16,60 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
-  Activity,
+  Activity, Bird, User, RefreshCcw, CirclePlus,
 } from "lucide-react"
 import { CompanyProfile } from "./components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
 import { VoiceAgentSettings } from "./components/voice-agent-settings"
 import { Analytics } from "./components/analytics"
+import {Update} from "@/lib/types/types";
+import {BACKEND_URL} from "@/lib/api-config";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [loggedInUser, setLoggedInUser] = useState<boolean>(false)
+  const [updates, setUpdates]       = useState<Update[]>([])
+  const [loadingUpdates, setLoadingUpdates]       = useState<boolean>(false)
+  const [error, setError]           = useState<string | null>(null)
+
+  useEffect(() => {
+    // 1) Check for auth token
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      setLoggedInUser(true)
+    } else {
+      setLoggedInUser(false)
+      return // no token → skip fetching
+    }
+
+    // 2) If logged in, fetch updates
+    async function loadUpdates() {
+      setLoadingUpdates(true)
+      setError(null)
+      try {
+        const res = await fetch(`${BACKEND_URL}/updates/get`, {
+          headers: { "Authorization": `Bearer ${localStorage.getItem('jwt')}` }
+        })
+        if (!res.ok) {
+          throw new Error(`Failed to fetch updates: ${res.status}`)
+        }
+        const data: { update: string; createdAt: string; status: string }[] = await res.json()
+        const models: Update[] = data.map(item => ({
+          update:    item.update,
+          createdAt: new Date(item.createdAt),
+          status:    item.status,
+        }))
+        setUpdates(models)
+      } catch (err: any) {
+        console.error(err)
+        setError(err.message || 'Unknown error')
+      } finally {
+        setLoadingUpdates(false)
+      }
+    }
+
+    loadUpdates()
+  }, [])
 
   const stats = [
     {
@@ -57,29 +102,6 @@ export default function Dashboard() {
     },
   ]
 
-  const recentActivity = [
-    {
-      action: "Salesforce integration connected",
-      time: "2 hours ago",
-      status: "success",
-    },
-    {
-      action: "Voice model updated to v2.1",
-      time: "4 hours ago",
-      status: "success",
-    },
-    {
-      action: "HubSpot sync completed",
-      time: "6 hours ago",
-      status: "success",
-    },
-    {
-      action: "Webhook endpoint failed",
-      time: "1 day ago",
-      status: "error",
-    },
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -88,8 +110,8 @@ export default function Dashboard() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Phone className="h-8 w-8 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900">VoiceAgent Pro</h1>
+                <Bird className="h-8 w-8 text-blue-600" />
+                <h1 className="text-2xl font-bold text-gray-900">Calling Bird<sup className='text-s text-gray-400'>Demo</sup></h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -98,8 +120,8 @@ export default function Dashboard() {
                 System Online
               </Badge>
               <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
+                <User className="h-4 w-4 mr-2" />
+                {loggedInUser ? "logout" : "Login"}
               </Button>
             </div>
           </div>
@@ -159,16 +181,22 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
+                    {updates.map((activity, index) => (
                       <div key={index} className="flex items-center space-x-3">
-                        {activity.status === "success" ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        {activity.status === "created" ? (
+                          <CirclePlus className="h-5 w-5 text-green-300" />
                         ) : (
-                          <AlertCircle className="h-5 w-5 text-red-500" />
+                          <RefreshCcw className="h-5 w-5 text-blue-500" />
                         )}
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                          <p className="text-xs text-gray-500">{activity.time}</p>
+                          <p className="text-sm font-medium text-gray-900">{activity.update}</p>
+                          <p className="text-xs text-gray-500">
+                            {activity.createdAt.toLocaleDateString('en-GB')}{" "}
+                            {activity.createdAt.toLocaleTimeString('en-GB', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
                         </div>
                       </div>
                     ))}
