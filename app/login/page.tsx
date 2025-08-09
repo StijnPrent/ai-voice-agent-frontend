@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { Phone, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from "lucide-react"
+import {Phone, Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Bird} from "lucide-react"
 import Link from "next/link"
 import {BACKEND_URL} from "@/lib/api-config";
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
                 throw new Error("Unexpected error");
             }
 
-            const { token } = await res.json();         // { token: "eyJ…" }
+            const { token } = await res.json();
             localStorage.setItem("jwt", token);         // or cookie
             setSuccess("Login successful!");
             // navigate to dashboard; with Next you could:
@@ -80,31 +80,31 @@ export default function LoginPage() {
                 <div className="text-center space-y-4">
                     <div className="flex items-center justify-center space-x-2">
                         <div className="bg-blue-600 p-2 rounded-lg">
-                            <Phone className="h-6 w-6 text-white" />
+                            <Bird className="h-6 w-6 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900">VoiceAgent Pro</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">CallingBird</h1>
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Welcome back</h2>
-                        <p className="text-gray-600">Sign in to your account to continue</p>
+                        <h2 className="text-xl font-semibold text-gray-900">Welkom terug</h2>
+                        <p className="text-gray-600">Log in om verder te gaan</p>
                     </div>
                 </div>
 
                 {/* Login Form */}
                 <Card className="shadow-lg border-0">
                     <CardHeader className="space-y-1 pb-4">
-                        <CardTitle className="text-center">Sign In</CardTitle>
-                        <CardDescription className="text-center">Enter your credentials to access your dashboard</CardDescription>
+                        <CardTitle className="text-center">Log in</CardTitle>
+                        <CardDescription className="text-center">Voer hier je gegevens in om verder te gaan</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {/* Email Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
+                                <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
-                                    placeholder="Enter your email"
+                                    placeholder="Vul je e-mailadres in"
                                     value={formData.email}
                                     onChange={(e) => handleInputChange("email", e.target.value)}
                                     required
@@ -114,12 +114,12 @@ export default function LoginPage() {
 
                             {/* Password Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
+                                <Label htmlFor="password">Wachtwoord</Label>
                                 <div className="relative">
                                     <Input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
-                                        placeholder="Enter your password"
+                                        placeholder="Vul je wachtwoord in"
                                         value={formData.password}
                                         onChange={(e) => handleInputChange("password", e.target.value)}
                                         required
@@ -143,18 +143,8 @@ export default function LoginPage() {
 
                             {/* Remember Me & Forgot Password */}
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="remember"
-                                        checked={formData.rememberMe}
-                                        onCheckedChange={(checked) => handleInputChange("rememberMe", checked as boolean)}
-                                    />
-                                    <Label htmlFor="remember" className="text-sm font-normal">
-                                        Remember me
-                                    </Label>
-                                </div>
                                 <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500 font-medium">
-                                    Forgot password?
+                                    Wachtwoord vergeten?
                                 </Link>
                             </div>
 
@@ -179,29 +169,11 @@ export default function LoginPage() {
                                 {isLoading ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Signing in...
+                                        Inloggen...
                                     </>
                                 ) : (
-                                    "Sign In"
+                                    "Log in"
                                 )}
-                            </Button>
-
-                            {/* Demo Login */}
-                            <div className="relative">
-                                <Separator />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="bg-white px-2 text-xs text-gray-500">OR</span>
-                                </div>
-                            </div>
-
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full h-11 bg-transparent"
-                                onClick={handleDemoLogin}
-                                disabled={isLoading}
-                            >
-                                Try Demo Account
                             </Button>
                         </form>
                     </CardContent>
@@ -210,9 +182,9 @@ export default function LoginPage() {
                 {/* Sign Up Link */}
                 <div className="text-center">
                     <p className="text-sm text-gray-600">
-                        {"Don't have an account? "}
+                        {"Nog geen account? "}
                         <Link href="/signup" className="text-blue-600 hover:text-blue-500 font-medium">
-                            Sign up for free
+                            Registreer hier
                         </Link>
                     </p>
                 </div>
@@ -224,10 +196,10 @@ export default function LoginPage() {
                             <h3 className="text-sm font-medium text-blue-900">Demo Credentials</h3>
                             <div className="text-xs text-blue-700 space-y-1">
                                 <p>
-                                    <strong>Email:</strong> demo@example.com
+                                    <strong>Email:</strong> demo@voorbeeld.com
                                 </p>
                                 <p>
-                                    <strong>Password:</strong> password
+                                    <strong>Wachtwoord:</strong> wachtwoord
                                 </p>
                             </div>
                         </div>
@@ -236,18 +208,7 @@ export default function LoginPage() {
 
                 {/* Footer */}
                 <div className="text-center text-xs text-gray-500 space-y-2">
-                    <p>© 2024 VoiceAgent Pro. All rights reserved.</p>
-                    <div className="space-x-4">
-                        <Link href="/privacy" className="hover:text-gray-700">
-                            Privacy Policy
-                        </Link>
-                        <Link href="/terms" className="hover:text-gray-700">
-                            Terms of Service
-                        </Link>
-                        <Link href="/support" className="hover:text-gray-700">
-                            Support
-                        </Link>
-                    </div>
+                    <p>© 2025 CallingBird. Alle rechten gereserveerd.</p>
                 </div>
             </div>
         </div>

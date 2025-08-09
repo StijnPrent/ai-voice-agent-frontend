@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import {useState, useEffect, useCallback, useRef} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,49 +9,328 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Building2, MapPin, Phone, Mail, Globe, X } from "lucide-react"
+import {BACKEND_URL} from "@/lib/api-config";
+import {CompanyProfileSkeleton} from "@/components/skeletons/CompanyProfileSkeleton";
+
+// Types
+type DayKey =
+    | "maandag"
+    | "dinsdag"
+    | "woensdag"
+    | "donderdag"
+    | "vrijdag"
+    | "zaterdag"
+    | "zondag"
+
+
+interface DaySchedule {
+  id?: number
+  isOpen: boolean
+  openTime: string
+  closeTime: string
+}
+
+interface OperatingDays extends Record<DayKey, DaySchedule> {
+  maandag: DaySchedule
+  dinsdag: DaySchedule
+  woensdag: DaySchedule
+  donderdag: DaySchedule
+  vrijdag: DaySchedule
+  zaterdag: DaySchedule
+  zondag: DaySchedule
+}
+
+
+interface CompanyData {
+  name: string
+  industry: string
+  size: string
+  website: string
+  phone: string
+  email: string
+  address: string
+  description: string
+  founded: string
+  operatingDays: OperatingDays
+}
 
 interface CustomInfoField {
   id: string
   value: string
+  persistedId?: number
 }
 
 export function CompanyProfile() {
-  const [companyData, setCompanyData] = useState({
-    name: "Acme Corporation",
+  const [companyData, setCompanyData] = useState<CompanyData>({
+    name: "",
     industry: "Technology",
     size: "100-500",
-    website: "https://acme.com",
-    phone: "+1 (555) 123-4567",
-    email: "contact@acme.com",
-    address: "123 Business Ave, San Francisco, CA 94105",
-    description: "Leading technology company focused on innovative solutions for modern businesses.",
-    founded: "2015",
-    openingTime: "09:00",
-    closingTime: "17:00",
+    website: "",
+    phone: "",
+    email: "",
+    address: "",
+    description: "",
+    founded: "",
     operatingDays: {
-      monday: true,
-      tuesday: true,
-      wednesday: true,
-      thursday: true,
-      friday: true,
-      saturday: false,
-      sunday: false,
+      maandag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+      dinsdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+      woensdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+      donderdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+      vrijdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+      zaterdag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+      zondag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
     },
-    timezone: "America/Los_Angeles",
   })
 
   const [customInfo, setCustomInfo] = useState<CustomInfoField[]>([{ id: "1", value: "" }])
+  const [isLoading, setIsLoading] = useState(true)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const initialLoadCompleteRef = useRef(false);
 
-  // Auto-save functionality
+  // Load data from backend
   useEffect(() => {
-    const saveData = () => {
-      console.log("Auto-saving company data:", { companyData, customInfo })
-      // Here you would typically save to your backend
+    const token = localStorage.getItem("jwt")
+    if (!token) {
+      setIsLoading(false)
+      initialLoadCompleteRef.current = true;
+      return
     }
 
-    const timeoutId = setTimeout(saveData, 1000)
+    const headers = { Authorization: `Bearer ${token}` }
+
+    async function load() {
+      try {
+        // Load company details
+        const detRes = await fetch(`${BACKEND_URL}/company/details`, { headers })
+        if (detRes.ok) {
+          const det = await detRes.json()
+          setCompanyData(prev => ({
+            ...prev,
+            name: det.name || "",
+            industry: det.industry || "Technology",
+            size: det.size?.toString() || "100-500",
+            description: det.description || "",
+            founded: det.foundedYear?.toString() || "",
+          }))
+        }
+
+        // Load company contacts
+        const contactRes = await fetch(`${BACKEND_URL}/company/contact`, { headers })
+        if (contactRes.ok) {
+          const contact = await contactRes.json()
+          if (contact) {
+            setCompanyData(prev => ({
+              ...prev,
+              website: contact.website || "",
+              phone: contact.phone || "",
+              email: contact.contact_email || "",
+              address: contact.address || "",
+            }))
+          }
+        }
+
+        // Load operating hours
+        const hrRes = await fetch(`${BACKEND_URL}/company/hours`, { headers })
+        if (hrRes.ok) {
+          const hrs = await hrRes.json()
+          const dayMap: Record<number, DayKey> = {
+            1: "maandag",
+            2: "dinsdag",
+            3: "woensdag",
+            4: "donderdag",
+            5: "vrijdag",
+            6: "zaterdag",
+            0: "zondag",
+          }
+
+
+          setCompanyData(prev => {
+            // Start with a shallow copy of the old days
+            const updatedDays: Partial<OperatingDays> = { ...prev.operatingDays }
+
+            // Fill in each day from the API
+            for (const h of hrs) {
+              const dayKey = dayMap[h.dayOfWeek]
+              if (!dayKey) continue
+
+              updatedDays[dayKey] = {
+                isOpen:    h.isOpen,
+                openTime:  h.openTime  ? h.openTime.slice(0,5)  : prev.operatingDays[dayKey].openTime,
+                closeTime: h.closeTime ? h.closeTime.slice(0,5) : prev.operatingDays[dayKey].closeTime,
+              }
+            }
+
+            return {
+              ...prev,
+              operatingDays: updatedDays as OperatingDays,
+            }
+          })
+        }
+
+        // Load custom info
+        const infRes = await fetch(`${BACKEND_URL}/company/info`, { headers });
+        if (infRes.ok) {
+          const infos = await infRes.json();
+          const customInfoFields = infos.map((i: any) => ({
+            id:         String(i.id),
+            value:      i.infoValue || i.value || "",
+            persistedId: i.id
+          }));
+          setCustomInfo(customInfoFields);
+        }
+      } catch (err) {
+        console.error("Load error", err)
+        setSaveStatus("error")
+      } finally {
+        setIsLoading(false)
+        initialLoadCompleteRef.current = true;
+      }
+    }
+
+    load()
+  }, [])
+
+  // Auto-save callback
+  const saveData = useCallback(async () => {
+    const token = localStorage.getItem("jwt");
+    if (!token) return;
+
+    setSaveStatus("saving");
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      // 1) Save company details
+      const detailsResponse = await fetch(
+          `${BACKEND_URL}/company/details`,
+          {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({
+              name: companyData.name,
+              industry: companyData.industry,
+              size: companyData.size,
+              foundedYear: Number(companyData.founded) || new Date().getFullYear(),
+              description: companyData.description,
+            }),
+          }
+      );
+      if (!detailsResponse.ok) throw new Error("Failed to save company details");
+
+      // 2) Save company contacts
+      const contactBody = JSON.stringify({
+        website: companyData.website,
+        phone: companyData.phone,
+        email: companyData.email,
+        address: companyData.address,
+      });
+      const contactsResponse = await fetch(
+          `${BACKEND_URL}/company/contact`,
+          { method: "PUT", headers, body: contactBody }
+      );
+      if (!contactsResponse.ok) throw new Error("Failed to save company contacts");
+
+      // 3) Save operating hours (use record IDs)
+      const dayMap: Record<DayKey, number> = {
+        maandag: 1,
+        dinsdag: 2,
+        woensdag: 3,
+        donderdag: 4,
+        vrijdag: 5,
+        zaterdag: 6,
+        zondag: 0,
+      };
+
+      for (const [dayKey, dayNumber] of Object.entries(dayMap)) {
+        const schedule = companyData.operatingDays[dayKey as DayKey];
+        const payload = JSON.stringify({
+          dayOfWeek: dayNumber,
+          isOpen: schedule.isOpen,
+          openTime: schedule.openTime,
+          closeTime: schedule.closeTime,
+        });
+
+        let res: Response;
+        if (schedule.id) {
+          // Update existing record
+          res = await fetch(
+              `${BACKEND_URL}/company/hours/${schedule.id}`,
+              { method: "PUT", headers, body: payload }
+          );
+        } else {
+          // Create new record if missing
+          res = await fetch(
+              `${BACKEND_URL}/company/hours`,
+              { method: "POST", headers, body: payload }
+          );
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`Error saving hours for ${dayKey}:`, errText);
+        }
+      }
+
+      // 4) Save custom info fields
+      for (const field of customInfo) {
+        if (!field.value.trim()) continue;
+
+        if (field.persistedId) {
+          const response = await fetch(
+              `${BACKEND_URL}/company/info`,
+              {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({ value: field.value, id: field.id  }),
+              }
+          );
+          if (!response.ok) console.error("Error updating custom info", await response.text());
+        } else {
+          const response = await fetch(
+              `${BACKEND_URL}/company/info`,
+              {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ value: field.value, id: field.id }),
+              }
+          );
+          if (response.ok) {
+            const created = await response.json();
+            setCustomInfo(prev =>
+                prev.map(f =>
+                    f.id === field.id ? { ...f, persistedId: created.id } : f
+                )
+            );
+          } else {
+            console.error("Error creating custom info", await response.text());
+          }
+        }
+      }
+
+      // 5) All done
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (err) {
+      console.error("Save error", err);
+      setSaveStatus("error");
+    }
+  }, [companyData, customInfo]);
+
+  useEffect(() => {
+    // HIGHLIGHT: If the initial data hasn't been loaded, don't trigger a save.
+    if (!initialLoadCompleteRef.current) {
+      return
+    }
+
+    // The rest of your debouncing logic remains the same
+    const timeoutId = setTimeout(() => {
+      saveData()
+    }, 1000)
+
     return () => clearTimeout(timeoutId)
-  }, [companyData, customInfo])
+  }, [companyData, customInfo, saveData])
 
   const handleCustomInfoChange = (id: string, value: string) => {
     setCustomInfo((prev) => {
@@ -67,7 +346,24 @@ export function CompanyProfile() {
     })
   }
 
-  const deleteCustomInfoField = (id: string) => {
+  const deleteCustomInfoField = async (id: string) => {
+    const fieldToDelete = customInfo.find(f => f.id === id)
+
+    // If this field is persisted, delete it from backend
+    if (fieldToDelete?.persistedId) {
+      const token = localStorage.getItem("jwt")
+      if (token) {
+        try {
+          await fetch(`${BACKEND_URL}/company/info/${fieldToDelete.persistedId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        } catch (err) {
+          console.error("Delete error", err)
+        }
+      }
+    }
+
     setCustomInfo((prev) => {
       const filtered = prev.filter((field) => field.id !== id)
       // Ensure there's always at least one empty field
@@ -78,16 +374,33 @@ export function CompanyProfile() {
     })
   }
 
+  const getSaveStatusBadge = () => {
+    switch (saveStatus) {
+      case "saving":
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Saving...</Badge>
+      case "saved":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Saved ✓</Badge>
+      case "error":
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Save Error</Badge>
+      default:
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Auto-save enabled</Badge>
+    }
+  }
+
+  if (isLoading) {
+    return (
+        <CompanyProfileSkeleton></CompanyProfileSkeleton>
+    )
+  }
+
   return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Company Profile</h2>
-            <p className="text-gray-600">All changes are automatically saved</p>
+            <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
+            <p className="text-gray-600">Alle veranderingen worden automatisch opgeslagen</p>
           </div>
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            Auto-save enabled
-          </Badge>
+          {getSaveStatusBadge()}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -96,13 +409,13 @@ export function CompanyProfile() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5" />
-                <span>Company Information</span>
+                <span>Bedrijf's informatie</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="company-name">Company Name</Label>
+                  <Label htmlFor="company-name">bedrijf's naam</Label>
                   <Input
                       id="company-name"
                       value={companyData.name}
@@ -111,7 +424,7 @@ export function CompanyProfile() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="industry">Industry</Label>
+                  <Label htmlFor="industry">Industrie</Label>
                   <Select
                       value={companyData.industry}
                       onValueChange={(value) => setCompanyData({ ...companyData, industry: value })}
@@ -120,20 +433,21 @@ export function CompanyProfile() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Technology">Technology</SelectItem>
-                      <SelectItem value="Healthcare">Healthcare</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="Retail">Retail</SelectItem>
-                      <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="Education">Education</SelectItem>
-                      <SelectItem value="Real Estate">Real Estate</SelectItem>
-                      <SelectItem value="Consulting">Consulting</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Technologie">Technologie</SelectItem>
+                      <SelectItem value="Kapper">Kapper</SelectItem>
+                      <SelectItem value="Schoonheidssalon">Schoonheidssalon</SelectItem>
+                      <SelectItem value="Wellness & Spa">Wellness & Spa</SelectItem>
+                      <SelectItem value="Zonnenbank">Zonnenbank</SelectItem>
+                      <SelectItem value="Massagesalon">Massagesalon</SelectItem>
+                      <SelectItem value="Nagelstudio">Nagelstudio</SelectItem>
+                      <SelectItem value="Microblading">Microblading</SelectItem>
+                      <SelectItem value="Make-up">Make-up</SelectItem>
+                      <SelectItem value="Overig">Overig</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="company-size">Company Size</Label>
+                  <Label htmlFor="company-size">Bedrijf's grootte</Label>
                   <Select
                       value={companyData.size}
                       onValueChange={(value) => setCompanyData({ ...companyData, size: value })}
@@ -142,16 +456,16 @@ export function CompanyProfile() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1-10">1-10 employees</SelectItem>
-                      <SelectItem value="11-50">11-50 employees</SelectItem>
-                      <SelectItem value="51-100">51-100 employees</SelectItem>
-                      <SelectItem value="100-500">100-500 employees</SelectItem>
-                      <SelectItem value="500+">500+ employees</SelectItem>
+                      <SelectItem value="1-10">1-10 Werknemers</SelectItem>
+                      <SelectItem value="11-50">11-50 Werknemers</SelectItem>
+                      <SelectItem value="51-100">51-100 Werknemers</SelectItem>
+                      <SelectItem value="100-500">100-500 Werknemers</SelectItem>
+                      <SelectItem value="500+">500+ Werknemers</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="founded">Founded</Label>
+                  <Label htmlFor="founded">Opgericht</Label>
                   <Input
                       id="founded"
                       value={companyData.founded}
@@ -163,7 +477,7 @@ export function CompanyProfile() {
               </div>
 
               <div>
-                <Label htmlFor="description">Company Description</Label>
+                <Label htmlFor="description">Bedrijf's beschrijving</Label>
                 <Textarea
                     id="description"
                     value={companyData.description}
@@ -179,7 +493,7 @@ export function CompanyProfile() {
           {/* Contact Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
+              <CardTitle>Contact Informatie</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -200,7 +514,7 @@ export function CompanyProfile() {
                 <div className="flex items-center space-x-3">
                   <Phone className="h-4 w-4 text-gray-500" />
                   <div className="flex-1">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">Telefoonnummer</Label>
                     <Input
                         id="phone"
                         value={companyData.phone}
@@ -214,7 +528,7 @@ export function CompanyProfile() {
                 <div className="flex items-center space-x-3">
                   <Mail className="h-4 w-4 text-gray-500" />
                   <div className="flex-1">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Contact Email</Label>
                     <Input
                         id="email"
                         value={companyData.email}
@@ -228,7 +542,7 @@ export function CompanyProfile() {
                 <div className="flex items-start space-x-3">
                   <MapPin className="h-4 w-4 text-gray-500 mt-1" />
                   <div className="flex-1">
-                    <Label htmlFor="address">Address</Label>
+                    <Label htmlFor="address">Adress</Label>
                     <Textarea
                         id="address"
                         value={companyData.address}
@@ -247,66 +561,92 @@ export function CompanyProfile() {
         {/* Business Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Business Settings</CardTitle>
-            <CardDescription>Configure timezone and operational preferences</CardDescription>
+            <CardTitle>Bedrijf's instellingen</CardTitle>
+            <CardDescription>Configureer de openingstijden voor elke dag</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="opening-time">Opening Time</Label>
-                  <Input
-                      id="opening-time"
-                      type="time"
-                      value={companyData.openingTime || "09:00"}
-                      onChange={(e) => setCompanyData({ ...companyData, openingTime: e.target.value })}
-                      className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="closing-time">Closing Time</Label>
-                  <Input
-                      id="closing-time"
-                      type="time"
-                      value={companyData.closingTime || "17:00"}
-                      onChange={(e) => setCompanyData({ ...companyData, closingTime: e.target.value })}
-                      className="mt-1"
-                  />
-                </div>
-              </div>
-
+            <div className="space-y-6">
               <div>
-                <Label>Operating Days</Label>
-                <div className="grid grid-cols-7 gap-2 mt-2">
+                <Label className="text-base font-medium">Openingstijden</Label>
+                <div className="mt-3 space-y-4">
                   {[
-                    { day: "Mon", key: "monday" },
-                    { day: "Tue", key: "tuesday" },
-                    { day: "Wed", key: "wednesday" },
-                    { day: "Thu", key: "thursday" },
-                    { day: "Fri", key: "friday" },
-                    { day: "Sat", key: "saturday" },
-                    { day: "Sun", key: "sunday" },
+                    { day: "Maandag", key: "maandag" as DayKey },
+                    { day: "Dinsdag", key: "dinsdag" as DayKey },
+                    { day: "Woensdag", key: "woensdag" as DayKey },
+                    { day: "Donderdag", key: "donderdag" as DayKey },
+                    { day: "Vrijdag", key: "vrijdag" as DayKey },
+                    { day: "Zaterdag", key: "zaterdag" as DayKey },
+                    { day: "Zondag", key: "zondag" as DayKey },
                   ].map(({ day, key }) => (
-                      <div key={key} className="flex flex-col items-center space-y-1">
-                        <Label className="text-xs font-medium">{day}</Label>
-                        <Button
-                            type="button"
-                            variant={companyData.operatingDays?.[key] !== false ? "default" : "outline"}
-                            size="sm"
-                            className="w-full h-8 text-xs"
-                            onClick={() => {
-                              const currentDays = companyData.operatingDays || {}
-                              setCompanyData({
-                                ...companyData,
-                                operatingDays: {
-                                  ...currentDays,
-                                  [key]: currentDays[key] !== false ? false : true,
-                                },
-                              })
-                            }}
-                        >
-                          {companyData.operatingDays?.[key] !== false ? "Open" : "Closed"}
-                        </Button>
+                      <div key={key} className="flex items-center space-x-4 p-3 border rounded-lg">
+                        <div className="w-20">
+                          <Label className="text-sm font-medium">{day}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                              type="button"
+                              variant={companyData.operatingDays[key].isOpen ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                setCompanyData({
+                                  ...companyData,
+                                  operatingDays: {
+                                    ...companyData.operatingDays,
+                                    [key]: {
+                                      ...companyData.operatingDays[key],
+                                      isOpen: !companyData.operatingDays[key].isOpen,
+                                    },
+                                  },
+                                })
+                              }}
+                          >
+                            {companyData.operatingDays[key].isOpen ? "Open" : "Dicht"}
+                          </Button>
+                        </div>
+                        {companyData.operatingDays[key].isOpen && (
+                            <>
+                              <div className="flex items-center space-x-2">
+                                <Label className="text-sm">Van:</Label>
+                                <Input
+                                    type="time"
+                                    value={companyData.operatingDays[key].openTime}
+                                    onChange={(e) => {
+                                      setCompanyData({
+                                        ...companyData,
+                                        operatingDays: {
+                                          ...companyData.operatingDays,
+                                          [key]: {
+                                            ...companyData.operatingDays[key],
+                                            openTime: e.target.value,
+                                          },
+                                        },
+                                      })
+                                    }}
+                                    className="w-32"
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Label className="text-sm">Tot:</Label>
+                                <Input
+                                    type="time"
+                                    value={companyData.operatingDays[key].closeTime}
+                                    onChange={(e) => {
+                                      setCompanyData({
+                                        ...companyData,
+                                        operatingDays: {
+                                          ...companyData.operatingDays,
+                                          [key]: {
+                                            ...companyData.operatingDays[key],
+                                            closeTime: e.target.value,
+                                          },
+                                        },
+                                      })
+                                    }}
+                                    className="w-32"
+                                />
+                              </div>
+                            </>
+                        )}
                       </div>
                   ))}
                 </div>
@@ -314,7 +654,7 @@ export function CompanyProfile() {
 
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="text-sm text-gray-600">
-                  <strong>Current Schedule:</strong>
+                  <strong>Huidige openingstijden:</strong>
                 </div>
                 <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
                   🇳🇱 Netherlands (CET/CEST)
@@ -322,30 +662,19 @@ export function CompanyProfile() {
               </div>
 
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span>Business Hours:</span>
-                  <span className="font-medium">
-                  {companyData.openingTime || "09:00"} - {companyData.closingTime || "17:00"}
-                </span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span>Operating Days:</span>
-                  <span className="font-medium">
-                  {Object.entries(
-                      companyData.operatingDays || {
-                        monday: true,
-                        tuesday: true,
-                        wednesday: true,
-                        thursday: true,
-                        friday: true,
-                        saturday: false,
-                        sunday: false,
-                      },
-                  )
-                      .filter(([_, isOpen]) => isOpen)
-                      .map(([day, _]) => day.charAt(0).toUpperCase() + day.slice(1, 3))
-                      .join(", ") || "Monday - Friday"}
-                </span>
+                <div className="space-y-1">
+                  <div className="font-medium">Openingstijden & Uren:</div>
+                  {Object.entries(companyData.operatingDays)
+                      .filter(([_, schedule]) => schedule.isOpen)
+                      .map(([day, schedule]) => (
+                          <div key={day} className="flex justify-between">
+                            <span className="capitalize">{day}:</span>
+                            <span>{schedule.openTime} - {schedule.closeTime}</span>
+                          </div>
+                      ))}
+                  {Object.values(companyData.operatingDays).every(schedule => !schedule.isOpen) && (
+                      <div className="text-gray-500 italic">Geen openingsdagen ingesteld</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,9 +684,9 @@ export function CompanyProfile() {
         {/* Custom Company Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Additional Company Information</CardTitle>
+            <CardTitle>Extra bedrijf's informatie</CardTitle>
             <CardDescription>
-              Add specific details about your company. New fields will appear automatically as you type.
+              Voeg specifieke details over je bedrijf toe. Nieuwe velden verschijnen automatisch zodra je begint te typen.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -368,7 +697,7 @@ export function CompanyProfile() {
                       <Input
                           value={field.value}
                           onChange={(e) => handleCustomInfoChange(field.id, e.target.value)}
-                          placeholder={`Company detail ${index + 1} (e.g., "Founded by former Google engineers", "Serving 10,000+ customers worldwide")`}
+                          placeholder={`Bedrijf's informatie ${index + 1} (bijv. "Opgericht door voormalige Google-ingenieurs", "Bedient meer dan 10.000 klanten wereldwijd")`}
                           className="w-full"
                       />
                     </div>
@@ -388,8 +717,7 @@ export function CompanyProfile() {
               {customInfo.filter((field) => field.value.trim() !== "").length > 0 && (
                   <div className="pt-2 border-t">
                     <p className="text-sm text-gray-500">
-                      <strong>Preview:</strong> These details will help customize your AI agent's knowledge about your
-                      company.
+                      <strong>Voorbeeld:</strong> Deze details helpen om de kennis van je AI-assistent over je bedrijf te personaliseren.
                     </p>
                     <div className="mt-2 space-y-1">
                       {customInfo
@@ -410,14 +738,14 @@ export function CompanyProfile() {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-blue-900">💡 Tips for better AI agent performance:</h3>
+              <h3 className="text-sm font-medium text-blue-900">💡 Tips voor betere prestaties van je AI-assistent:</h3>
               <ul className="text-xs text-blue-700 space-y-1 ml-4">
-                <li>• Include your company's unique value propositions</li>
-                <li>• Mention key achievements or milestones</li>
-                <li>• Add information about your target customers</li>
-                <li>• Include any awards or certifications</li>
-                <li>• Mention your company culture or values</li>
-                <li>• Add details about your products or services</li>
+                <li>• Vermeld de unieke waardepropositie van je bedrijf</li>
+                <li>• Noem belangrijke prestaties of mijlpalen</li>
+                <li>• Geef informatie over je doelgroep</li>
+                <li>• Vermeld eventuele prijzen of certificeringen</li>
+                <li>• Beschrijf de bedrijfscultuur of kernwaarden</li>
+                <li>• Voeg details toe over je producten of diensten</li>
               </ul>
             </div>
           </CardContent>

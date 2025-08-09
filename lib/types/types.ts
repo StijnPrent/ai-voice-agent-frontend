@@ -1,8 +1,10 @@
 import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
 import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";
 
+type DayKey = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
+
 export interface Integration {
-    key: string
+    id: string
     name: string
     description: string
     category: string
@@ -34,4 +36,34 @@ export interface Update {
     update: string;
     createdAt: Date;
     status: string;
+}
+export interface OperatingDays extends Record<DayKey, boolean> {
+    monday: boolean
+    tuesday: boolean
+    wednesday: boolean
+    thursday: boolean
+    friday: boolean
+    saturday: boolean
+    sunday: boolean
+}
+
+export interface CompanyData {
+    name: string
+    industry: string
+    size: string
+    website: string
+    phone: string
+    email: string
+    address: string
+    description: string
+    founded: string
+    openingTime: string
+    closingTime: string
+    operatingDays: OperatingDays
+}
+
+export interface CustomInfoField {
+    id: string
+    value: string
+    persistedId?: number
 }
