@@ -106,28 +106,28 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid grid-cols-4">
-              <TabsTrigger value="overview"><BarChart3 className="h-4 w-4" /> Overzicht</TabsTrigger>
-              <TabsTrigger value="company" ><Building2 className="h-4 w-4" /> Bedrijf</TabsTrigger>
-              <TabsTrigger value="integrations"><Plug className="h-4 w-4" /> Integraties</TabsTrigger>
-              <TabsTrigger value="voice-agent"><Phone className="h-4 w-4" /> Voice Settings</TabsTrigger>
+              <TabsTrigger value="overview"><BarChart3 className="h-4 w-4 mr-1" />Overzicht</TabsTrigger>
+              <TabsTrigger value="company" ><Building2 className="h-4 w-4 mr-1" />Bedrijf</TabsTrigger>
+              <TabsTrigger value="integrations"><Plug className="h-4 w-4 mr-1" />Integraties</TabsTrigger>
+              <TabsTrigger value="voice-agent"><Phone className="h-4 w-4 mr-1" />Stem instellingen</TabsTrigger>
             </TabsList>
 
             {/* Overview Panel */}
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((s,i) => (
-                    <Card key={i}>
-                      <CardContent className="p-6 flex justify-between items-center">
-                        <div>
-                          <p className="text-sm text-gray-600">{s.title}</p>
-                          <p className="text-2xl font-bold">{s.value}</p>
-                          <p className={`text-sm ${s.color}`}>{s.change}</p>
-                        </div>
-                        <s.icon className={`h-8 w-8 ${s.color}`} />
-                      </CardContent>
-                    </Card>
-                ))}
-              </div>
+              {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">*/}
+              {/*  {stats.map((s,i) => (*/}
+              {/*      <Card key={i}>*/}
+              {/*        <CardContent className="p-6 flex justify-between items-center">*/}
+              {/*          <div>*/}
+              {/*            <p className="text-sm text-gray-600">{s.title}</p>*/}
+              {/*            <p className="text-2xl font-bold">{s.value}</p>*/}
+              {/*            <p className={`text-sm ${s.color}`}>{s.change}</p>*/}
+              {/*          </div>*/}
+              {/*          <s.icon className={`h-8 w-8 ${s.color}`} />*/}
+              {/*        </CardContent>*/}
+              {/*      </Card>*/}
+              {/*  ))}*/}
+              {/*</div>*/}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Activity */}
@@ -161,10 +161,20 @@ export default function Dashboard() {
                     <CardDescription>Snelkoppelingen</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Button variant="outline" className="w-full justify-start"><CirclePlus className="mr-2 h-4 w-4"/> Add Integration</Button>
-                    <Button variant="outline" className="w-full justify-start"><Settings className="mr-2 h-4 w-4"/> Voice Settings</Button>
-                    <Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4"/> Team Access</Button>
-                    <Button variant="outline" className="w-full justify-start"><BarChart3 className="mr-2 h-4 w-4"/> Analytics</Button>
+                    <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => setActiveTab("integrations")}
+                    >
+                      <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => setActiveTab("voice-agent")}
+                    >
+                      <Settings className="mr-2 h-4 w-4"/> Stem instellingen
+                    </Button>
                   </CardContent>
                 </Card>
               </div>

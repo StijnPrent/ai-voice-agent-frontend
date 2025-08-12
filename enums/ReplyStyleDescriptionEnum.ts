@@ -1,6 +1,6 @@
 export enum ReplyStyleDescriptionEnum {
-    Professional = "Polished, respectful, business-like. Avoid slang; use complete sentences.",
-    Casual       = "Friendly, relaxed, conversational. Feel free to use contractions.",
-    Empathetic   = "Warm, understanding, validating feelings.",
-    Humorous     = "Lighthearted, playful, maybe include a joke or pun.",
+    Professional = "Verzorgd, respectvol en zakelijk. Vermijd slang en gebruik volledige zinnen.",
+    Casual       = "Vriendelijk, ontspannen en informeel. Voel je vrij om samentrekkingen te gebruiken.",
+    Empathetic   = "Warm, begripvol en bevestigend in gevoelens.",
+    Humorous     = "Luchtig, speels en eventueel met een grapje of woordspeling.",
 }

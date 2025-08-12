@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useState} from "react"
+import {useEffect, useRef, useState} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,6 +60,46 @@ export function VoiceAgentSettings() {
     name: id.charAt(0).toUpperCase() + id.slice(1),
     description: replyStyleDescriptions[id],
   }))
+  const [playingVoiceKey, setPlayingVoiceKey] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  function playPreview(voiceKey: string) {
+    const src = `voices/${voiceKey}.mp3`; // file names: Koen.mp3, Bella.mp3, Eric.mp3
+    const same = playingVoiceKey === voiceKey;
+
+    // Toggle pause/resume if same voice
+    if (same && audioRef.current) {
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+      } else {
+        audioRef.current.pause();
+      }
+      return;
+    }
+
+    // Start a new voice
+    audioRef.current?.pause();
+    const audio = new Audio(src);
+    audioRef.current = audio;
+    setPlayingVoiceKey(voiceKey);
+
+    audio.addEventListener("ended", () => setPlayingVoiceKey(null));
+    audio.addEventListener("pause", () => {
+      if (playingVoiceKey === voiceKey) setPlayingVoiceKey(null);
+    });
+
+    audio.play().catch(err => {
+      console.error("Preview play failed:", err);
+      setPlayingVoiceKey(null);
+    });
+  }
 
   useEffect(() => {
     async function fetchAllSettings() {
@@ -163,12 +203,12 @@ export function VoiceAgentSettings() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Voice Agent Settings</h2>
-          <p className="text-gray-600">Configure your AI voice agent's behavior and characteristics</p>
+          <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
+          <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
         </div>
         <div className="flex space-x-2">
           <Button onClick={handleSave} disabled={loading}>
-            {loading ? "Saving…" : "Save All Changes"}
+            {loading ? "Opslaan…" : "Alles opslaan"}
           </Button>
         </div>
       </div>
@@ -177,11 +217,11 @@ export function VoiceAgentSettings() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="voice" className="flex items-center space-x-2">
             <Volume2 className="h-4 w-4" />
-            <span>Voice</span>
+            <span>Stem</span>
           </TabsTrigger>
           <TabsTrigger value="personality" className="flex items-center space-x-2">
             <Brain className="h-4 w-4" />
-            <span>Personality</span>
+            <span>Persoonlijkheid</span>
           </TabsTrigger>
           {/*<TabsTrigger value="behavior" className="flex items-center space-x-2">*/}
           {/*  <MessageSquare className="h-4 w-4" />*/}
@@ -206,32 +246,30 @@ export function VoiceAgentSettings() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {voices.map((voice) => (
-                    <div
-                      key={voice.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        voiceSettings?.voiceId === voice.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setVoiceSettings({ ...voiceSettings, voiceId: voice.id })}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">{voice.name}</h4>
+                  {Object.entries(VoiceId).map(([voiceKey, elevenLabsId]) => (
+                      <div
+                          key={voiceKey}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              voiceSettings?.voiceId === elevenLabsId
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                          }`}
+                          onClick={() => setVoiceSettings({ ...voiceSettings, voiceId: elevenLabsId })}
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{voiceKey}</h4>
+                          <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playPreview(voiceKey);
+                              }}
+                          >
+                            {playingVoiceKey === voiceKey ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleVoicePreview()
-                          }}
-                        >
-                          {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                        </Button>
                       </div>
-                    </div>
                   ))}
                 </div>
               </CardContent>
@@ -282,12 +320,12 @@ export function VoiceAgentSettings() {
         <TabsContent value="personality" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Agent Personality</CardTitle>
-              <CardDescription>Define how your AI agent interacts with callers</CardDescription>
+              <CardTitle>AI persoonlijkheid</CardTitle>
+              <CardDescription>Bepaal hoe je AI-agent met bellers omgaat</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label>Personality Type</Label>
+                <Label>Persoonlijkheidstype</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                   {personalities.map((personality) => (
                     <div

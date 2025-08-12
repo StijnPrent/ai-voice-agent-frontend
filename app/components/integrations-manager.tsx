@@ -193,12 +193,12 @@ export function IntegrationsManager() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Integrations</h2>
-                    <p className="text-gray-600">Connect your favorite tools and services</p>
+                    <h2 className="text-2xl font-bold text-gray-900">Integraties</h2>
+                    <p className="text-gray-600">Verbind je favoriete tools en services</p>
                 </div>
-                <Button>
-                    <Plus className="h-4 w-4 mr-2"/> Browse All Integrations
-                </Button>
+                {/*<Button>*/}
+                {/*    <Plus className="h-4 w-4 mr-2"/> Browse All Integrations*/}
+                {/*</Button>*/}
             </div>
 
             <Card>
@@ -208,24 +208,24 @@ export function IntegrationsManager() {
                             <Search
                                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"/>
                             <Input
-                                placeholder="Search integrations..."
+                                placeholder="Integraties zoeken..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className="pl-10"
                             />
                         </div>
-                        <div className="flex gap-2">
-                            {categories.map(cat => (
-                                <Button
-                                    key={cat}
-                                    variant={selectedCategory === cat ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setSelectedCategory(cat)}
-                                >
-                                    {cat === "all" ? "All" : cat}
-                                </Button>
-                            ))}
-                        </div>
+                        {/*<div className="flex gap-2">*/}
+                        {/*    {categories.map(cat => (*/}
+                        {/*        <Button*/}
+                        {/*            key={cat}*/}
+                        {/*            variant={selectedCategory === cat ? "default" : "outline"}*/}
+                        {/*            size="sm"*/}
+                        {/*            onClick={() => setSelectedCategory(cat)}*/}
+                        {/*        >*/}
+                        {/*            {cat === "all" ? "All" : cat}*/}
+                        {/*        </Button>*/}
+                        {/*    ))}*/}
+                        {/*</div>*/}
                     </div>
                 </CardContent>
             </Card>
@@ -252,29 +252,6 @@ export function IntegrationsManager() {
                                         </div>
                                     </div>
                                 </div>
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setSelectedIntegration(integration)}
-                                        >
-                                            <Settings className="h-4 w-4"/>
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle className="flex items-center space-x-2">
-                                                <span className="text-2xl">{integration.logo}</span>
-                                                <span>{integration.name} Settings</span>
-                                            </DialogTitle>
-                                            <DialogDescription>
-                                                Configure your {integration.name} integration settings
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        {/* IntegrationSettings component */}
-                                    </DialogContent>
-                                </Dialog>
                             </div>
                         </CardHeader>
                         <CardContent>
