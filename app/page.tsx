@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
-  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Users
+  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Users, Calendar
 } from "lucide-react"
 import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
@@ -17,6 +17,7 @@ import { Analytics }              from "./components/analytics"
 import { BACKEND_URL } from "@/lib/api-config"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
+import Appointments from "@/app/components/appointments";
 
 export default function Dashboard() {
   const router        = useRouter()
@@ -105,9 +106,10 @@ export default function Dashboard() {
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid grid-cols-4">
+            <TabsList className="grid grid-cols-5">
               <TabsTrigger value="overview"><BarChart3 className="h-4 w-4 mr-1" />Overzicht</TabsTrigger>
               <TabsTrigger value="company" ><Building2 className="h-4 w-4 mr-1" />Bedrijf</TabsTrigger>
+              <TabsTrigger value="appointments"><Calendar className="h-4 w-4 mr-1" />Afspraken</TabsTrigger>
               <TabsTrigger value="integrations"><Plug className="h-4 w-4 mr-1" />Integraties</TabsTrigger>
               <TabsTrigger value="voice-agent"><Phone className="h-4 w-4 mr-1" />Stem instellingen</TabsTrigger>
             </TabsList>
@@ -183,6 +185,10 @@ export default function Dashboard() {
             {/* Company Panel */}
             <TabsContent value="company">
               <CompanyProfile />
+            </TabsContent>
+
+            <TabsContent value="appointments">
+              <Appointments />
             </TabsContent>
 
             {/* Integrations Panel */}
