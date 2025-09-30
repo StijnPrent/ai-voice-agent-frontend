@@ -20,7 +20,11 @@ import type { UIAppointmentType, UIStaffMember, UISpecialty, UIAvailability } fr
 type DayKey = keyof UIAvailability;
 const DAY_ORDER: DayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 
-export default function Appointments() {
+interface AppointmentsProps {
+    onDirtyChange?: (dirty: boolean) => void
+}
+
+export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     /* ----------------------------- State ----------------------------- */
     const [appointmentTypes, setAppointmentTypes] = useState<UIAppointmentType[]>([])
     const [staffMembers, setStaffMembers] = useState<UIStaffMember[]>([])
@@ -107,6 +111,15 @@ export default function Appointments() {
     }
 
     /* ----------------------------- Staff ---------------------------- */
+    const availabilityEquals = (a: UIAvailability, b: UIAvailability) =>
+        DAY_ORDER.every(day => {
+            const dayA = a[day]
+            const dayB = b[day]
+            return dayA.isWorking === dayB.isWorking && dayA.startTime === dayB.startTime && dayA.endTime === dayB.endTime
+        })
+
+    const availabilityIsDefault = (availability: UIAvailability) => availabilityEquals(availability, emptyWeek())
+
     function parseSpecialtyString(s: string): UISpecialty[] {
         return s.split(",").map(x => x.trim()).filter(Boolean).map(n => ({ name: n }));
     }
@@ -207,6 +220,45 @@ export default function Appointments() {
         return m > 0 ? `${h}h ${m}m` : `${h}h`
     }
     const categories = [...new Set(appointmentTypes.map(apt => apt.category))]
+
+    const hasNewAppointmentTypeChanges = useMemo(() => {
+        const nameChanged = (newAppointmentType.name ?? "").trim() !== ""
+        const categoryChanged = (newAppointmentType.category ?? "").trim() !== ""
+        const descriptionChanged = (newAppointmentType.description ?? "").trim() !== ""
+        const priceChanged = newAppointmentType.price != null
+        const duration = newAppointmentType.duration ?? 30
+        const durationChanged = duration !== 30
+        return nameChanged || categoryChanged || descriptionChanged || priceChanged || durationChanged
+    }, [newAppointmentType])
+
+    const hasNewStaffChanges = useMemo(() => {
+        const nameChanged = newStaffMember.name.trim() !== ""
+        const roleChanged = newStaffMember.role.trim() !== ""
+        const specialtiesChanged = newStaffMember.specialties.trim() !== ""
+        const availabilityChanged = !availabilityIsDefault(newStaffMember.availability)
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged
+    }, [newStaffMember])
+
+    const staffDraftChanged = useMemo(() => {
+        if (!staffDraft?.id) {
+            return false
+        }
+        const original = staffMembers.find(s => s.id === staffDraft.id)
+        if (!original) {
+            return true
+        }
+        const nameChanged = staffDraft.name !== original.name
+        const roleChanged = staffDraft.role !== original.role
+        const specialtiesChanged = staffDraft.specialties !== specialtiesToString(original.specialties)
+        const availabilityChanged = !availabilityEquals(staffDraft.availability, original.availability)
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged
+    }, [staffDraft, staffMembers])
+
+    const hasUnsavedChanges = hasNewAppointmentTypeChanges || hasNewStaffChanges || staffDraftChanged
+
+    useEffect(() => {
+        onDirtyChange?.(hasUnsavedChanges)
+    }, [hasUnsavedChanges, onDirtyChange])
 
     if (loading) return <p className="p-4">Loading...</p>
     if (error) return <p className="p-4 text-red-600">{error}</p>

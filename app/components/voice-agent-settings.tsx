@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useRef, useState} from "react"
+import {useCallback, useEffect, useRef, useState} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,11 @@ import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
 import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";
 import VoiceAgentSkeleton from "@/components/skeletons/VoiceAgentSkeleton";
 
-export function VoiceAgentSettings() {
+interface VoiceAgentSettingsProps {
+  onDirtyChange?: (dirty: boolean) => void
+}
+
+export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const defaultVoiceSettings: VoiceSettings = {
     id: 0,
@@ -40,8 +44,33 @@ export function VoiceAgentSettings() {
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(defaultVoiceSettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const initialLoadCompleteRef = useRef(false)
+  const isSavingRef = useRef(false)
 
   const [agentSettings, setAgentSettings] = useState<ReplyStyle>(defaultReplyStyle)
+
+  const updateVoiceSettings = useCallback((updater: (prev: VoiceSettings) => VoiceSettings) => {
+    setVoiceSettings(prev => {
+      const next = updater(prev)
+      if (initialLoadCompleteRef.current && !isSavingRef.current && next !== prev) {
+        setIsDirty(true)
+      }
+      return next
+    })
+  }, [])
+
+  const updateAgentSettings = useCallback((updater: (prev: ReplyStyle) => ReplyStyle) => {
+    setAgentSettings(prev => {
+      const next = updater(prev)
+      if (initialLoadCompleteRef.current && !isSavingRef.current && next !== prev) {
+        setIsDirty(true)
+      }
+      return next
+    })
+  }, [])
 
   const voices = Object.entries(VoiceId).map(([name, id]) => ({
     name,
@@ -105,7 +134,6 @@ export function VoiceAgentSettings() {
     async function fetchAllSettings() {
       try {
         const token = localStorage.getItem("jwt")
-        // fire both requests in parallel
         const [voiceRes, replyRes] = await Promise.all([
           fetch(`${BACKEND_URL}/voice-settings/settings`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -125,18 +153,18 @@ export function VoiceAgentSettings() {
         const dataVoice: VoiceSettings = await voiceRes.json()
         const dataReply: ReplyStyle = await replyRes.json()
 
-        // update your two bits of state
         setVoiceSettings(dataVoice)
-        setAgentSettings(dataReply)
-
-        setAgentSettings(prev => ({
-          ...prev,
-          personality: dataReply.name,
-        }))
+        setAgentSettings({
+          ...dataReply,
+          description: replyStyleDescriptions[dataReply.name as ReplyStyleEnum],
+        })
       } catch (err: any) {
         setError(err.message || "Error fetching voice or reply-style settings")
       } finally {
         setLoading(false)
+        initialLoadCompleteRef.current = true
+        setIsDirty(false)
+        setSaveStatus("idle")
       }
     }
 
@@ -144,11 +172,16 @@ export function VoiceAgentSettings() {
   }, [])
 
   const handleSave = async () => {
-    setLoading(true)
+    if (!initialLoadCompleteRef.current || !isDirty) {
+      return
+    }
+
+    setSaving(true)
     setError(null)
+    setSaveStatus("saving")
+    isSavingRef.current = true
     const token = localStorage.getItem("jwt")
     try {
-      // send both updates in parallel
       const [voiceRes, replyRes] = await Promise.all([
         fetch(`${BACKEND_URL}/voice-settings/settings`, {
           method: "PUT",
@@ -164,7 +197,6 @@ export function VoiceAgentSettings() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          // your agentSettings is actually a ReplyStyle
           body: JSON.stringify(agentSettings),
         }),
       ])
@@ -172,13 +204,37 @@ export function VoiceAgentSettings() {
       if (!voiceRes.ok) throw new Error(`Voice save failed (${voiceRes.status})`)
       if (!replyRes.ok) throw new Error(`Personality save failed (${replyRes.status})`)
 
-      // Optionally re-fetch or show a success toast here
-      console.log("Saved OK")
+      setIsDirty(false)
+      setSaveStatus("saved")
+      setTimeout(() => setSaveStatus("idle"), 2000)
     } catch (err: any) {
       setError(err.message || "Failed to save settings")
+      setSaveStatus("error")
     } finally {
-      setLoading(false)
+      isSavingRef.current = false
+      setSaving(false)
     }
+  }
+
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
+
+  const getSaveStatusBadge = () => {
+    if (saveStatus === "saving") {
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Opslaan…</Badge>
+    }
+    if (saveStatus === "error") {
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Opslaan mislukt</Badge>
+    }
+    if (isDirty) {
+      return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Niet-opgeslagen wijzigingen</Badge>
+    }
+    if (saveStatus === "saved") {
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Opgeslagen ✓</Badge>
+    }
+    return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200">Geen wijzigingen</Badge>
   }
 
 
@@ -206,9 +262,10 @@ export function VoiceAgentSettings() {
           <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
           <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
         </div>
-        <div className="flex space-x-2">
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? "Opslaan…" : "Alles opslaan"}
+        <div className="flex items-center gap-3">
+          {getSaveStatusBadge()}
+          <Button onClick={handleSave} disabled={saving || loading || !isDirty}>
+            {saving ? "Opslaan…" : "Alles opslaan"}
           </Button>
         </div>
       </div>
@@ -254,7 +311,10 @@ export function VoiceAgentSettings() {
                                   ? "border-blue-500 bg-blue-50"
                                   : "border-gray-200 hover:border-gray-300"
                           }`}
-                          onClick={() => setVoiceSettings({ ...voiceSettings, voiceId: elevenLabsId })}
+                          onClick={() => updateVoiceSettings(prev => {
+                            if (prev.voiceId === elevenLabsId) return prev
+                            return { ...prev, voiceId: elevenLabsId }
+                          })}
                       >
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium">{voiceKey}</h4>
@@ -287,7 +347,11 @@ export function VoiceAgentSettings() {
                   <div className="mt-2">
                     <Slider
                       value={[voiceSettings.talkingSpeed]}
-                      onValueChange={(value) => setVoiceSettings({ ...voiceSettings, talkingSpeed: value[0] })}
+                      onValueChange={(value) => updateVoiceSettings(prev => {
+                        const speed = value[0]
+                        if (prev.talkingSpeed === speed) return prev
+                        return { ...prev, talkingSpeed: speed }
+                      })}
                       max={1.2}
                       min={0.7}
                       step={0.1}
@@ -306,7 +370,13 @@ export function VoiceAgentSettings() {
                   <Textarea
                       id="greeting"
                       value={voiceSettings.welcomePhrase}
-                      onChange={(e) => setVoiceSettings({ ...voiceSettings, welcomePhrase: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        updateVoiceSettings(prev => {
+                          if (prev.welcomePhrase === value) return prev
+                          return { ...prev, welcomePhrase: value }
+                        })
+                      }}
                       rows={3}
                       placeholder="Enter the greeting message"
                   />
@@ -335,7 +405,14 @@ export function VoiceAgentSettings() {
                           ? "border-blue-500 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
-                      onClick={() => setAgentSettings({ ...agentSettings, name: personality.id })}
+                      onClick={() => updateAgentSettings(prev => {
+                        if (prev.name === personality.id) return prev
+                        return {
+                          ...prev,
+                          name: personality.id,
+                          description: replyStyleDescriptions[personality.id],
+                        }
+                      })}
                     >
                       <h4 className="font-medium">{personality.name}</h4>
                       <p className="text-sm text-gray-600">{personality.description}</p>

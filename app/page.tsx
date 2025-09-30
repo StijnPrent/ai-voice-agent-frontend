@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,30 @@ export default function Dashboard() {
   const searchParams  = useSearchParams()
   const initialTab    = searchParams.get('tab') ?? 'overview'
   const [activeTab, setActiveTab] = useState<string>(initialTab)
+  const [tabUnsaved, setTabUnsaved] = useState<Record<string, boolean>>({})
+
+  const attemptTabChange = useCallback((nextTab: string) => {
+    if (nextTab === activeTab) return
+
+    const currentDirty = tabUnsaved[activeTab] ?? false
+    if (currentDirty) {
+      const confirmLeave = window.confirm("Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je dit tabblad wilt verlaten?")
+      if (!confirmLeave) {
+        return
+      }
+    }
+
+    setActiveTab(nextTab)
+  }, [activeTab, tabUnsaved, setActiveTab])
+
+  const handleTabDirtyChange = useCallback((tab: string, dirty: boolean) => {
+    setTabUnsaved(prev => {
+      if ((prev[tab] ?? false) === dirty) {
+        return prev
+      }
+      return { ...prev, [tab]: dirty }
+    })
+  }, [])
 
   // Data‐loading state
   const [updates, setUpdates]       = useState<Update[]>([])
@@ -105,7 +129,7 @@ export default function Dashboard() {
         </header>
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={attemptTabChange} className="space-y-6">
             <TabsList className="grid grid-cols-5">
               <TabsTrigger value="overview"><BarChart3 className="h-4 w-4 mr-1" />Overzicht</TabsTrigger>
               <TabsTrigger value="company" ><Building2 className="h-4 w-4 mr-1" />Bedrijf</TabsTrigger>
@@ -166,14 +190,14 @@ export default function Dashboard() {
                     <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={() => setActiveTab("integrations")}
+                        onClick={() => attemptTabChange("integrations")}
                     >
                       <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
                     </Button>
                     <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={() => setActiveTab("voice-agent")}
+                        onClick={() => attemptTabChange("voice-agent")}
                     >
                       <Settings className="mr-2 h-4 w-4"/> Stem instellingen
                     </Button>
@@ -184,11 +208,11 @@ export default function Dashboard() {
 
             {/* Company Panel */}
             <TabsContent value="company">
-              <CompanyProfile />
+              <CompanyProfile onDirtyChange={(dirty) => handleTabDirtyChange("company", dirty)} />
             </TabsContent>
 
             <TabsContent value="appointments">
-              <Appointments />
+              <Appointments onDirtyChange={(dirty) => handleTabDirtyChange("appointments", dirty)} />
             </TabsContent>
 
             {/* Integrations Panel */}
@@ -198,7 +222,7 @@ export default function Dashboard() {
 
             {/* Voice Agent Panel */}
             <TabsContent value="voice-agent">
-              <VoiceAgentSettings />
+              <VoiceAgentSettings onDirtyChange={(dirty) => handleTabDirtyChange("voice-agent", dirty)} />
             </TabsContent>
           </Tabs>
         </div>
