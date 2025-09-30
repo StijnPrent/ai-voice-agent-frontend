@@ -60,7 +60,11 @@ interface CustomInfoField {
   persistedId?: number
 }
 
-export function CompanyProfile() {
+interface CompanyProfileProps {
+  onDirtyChange?: (dirty: boolean) => void
+}
+
+export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const [companyData, setCompanyData] = useState<CompanyData>({
     name: "",
     industry: "Technology",
@@ -85,7 +89,19 @@ export function CompanyProfile() {
   const [customInfo, setCustomInfo] = useState<CustomInfoField[]>([{ id: "1", value: "" }])
   const [isLoading, setIsLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [isDirty, setIsDirty] = useState(false)
   const initialLoadCompleteRef = useRef(false);
+  const isSavingRef = useRef(false);
+
+  const handleCompanyDataChange = useCallback((updater: (prev: CompanyData) => CompanyData) => {
+    setCompanyData(prev => {
+      const next = updater(prev)
+      if (initialLoadCompleteRef.current && !isSavingRef.current && next !== prev) {
+        setIsDirty(true)
+      }
+      return next
+    })
+  }, [])
 
   // Load data from backend
   useEffect(() => {
@@ -184,17 +200,22 @@ export function CompanyProfile() {
       } finally {
         setIsLoading(false)
         initialLoadCompleteRef.current = true;
+        setIsDirty(false)
       }
     }
 
     load()
   }, [])
 
-  // Auto-save callback
   const saveData = useCallback(async () => {
     const token = localStorage.getItem("jwt");
     if (!token) return;
 
+    if (!isDirty) {
+      return;
+    }
+
+    isSavingRef.current = true;
     setSaveStatus("saving");
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -310,39 +331,43 @@ export function CompanyProfile() {
       }
 
       // 5) All done
+      setIsDirty(false)
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (err) {
       console.error("Save error", err);
       setSaveStatus("error");
+    } finally {
+      isSavingRef.current = false;
     }
-  }, [companyData, customInfo]);
+  }, [companyData, customInfo, isDirty]);
 
   useEffect(() => {
-    // HIGHLIGHT: If the initial data hasn't been loaded, don't trigger a save.
-    if (!initialLoadCompleteRef.current) {
-      return
-    }
-
-    // The rest of your debouncing logic remains the same
-    const timeoutId = setTimeout(() => {
-      saveData()
-    }, 1000)
-
-    return () => clearTimeout(timeoutId)
-  }, [companyData, customInfo, saveData])
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
 
   const handleCustomInfoChange = (id: string, value: string) => {
     setCustomInfo((prev) => {
-      const updated = prev.map((field) => (field.id === id ? { ...field, value } : field))
+      let changed = false
+      const updated = prev.map((field) => {
+        if (field.id === id && field.value !== value) {
+          changed = true
+          return { ...field, value }
+        }
+        return field
+      })
 
-      // If the last field has content and there's no empty field after it, add a new one
       const lastField = updated[updated.length - 1]
       if (lastField.value.trim() !== "" && !updated.some((field) => field.value.trim() === "")) {
+        changed = true
         updated.push({ id: Date.now().toString(), value: "" })
       }
 
-      return updated
+      if (changed && initialLoadCompleteRef.current && !isSavingRef.current) {
+        setIsDirty(true)
+      }
+
+      return changed ? updated : prev
     })
   }
 
@@ -365,26 +390,41 @@ export function CompanyProfile() {
     }
 
     setCustomInfo((prev) => {
-      const filtered = prev.filter((field) => field.id !== id)
-      // Ensure there's always at least one empty field
+      let changed = false
+      const filtered = prev.filter((field) => {
+        if (field.id === id) {
+          changed = true
+          return false
+        }
+        return true
+      })
+      if (filtered.length === prev.length) {
+        return prev
+      }
       if (filtered.length === 0 || !filtered.some((field) => field.value.trim() === "")) {
         filtered.push({ id: Date.now().toString(), value: "" })
+      }
+      if (initialLoadCompleteRef.current && !isSavingRef.current) {
+        setIsDirty(true)
       }
       return filtered
     })
   }
 
   const getSaveStatusBadge = () => {
-    switch (saveStatus) {
-      case "saving":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Saving...</Badge>
-      case "saved":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Saved ✓</Badge>
-      case "error":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Save Error</Badge>
-      default:
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Auto-save enabled</Badge>
+    if (saveStatus === "saving") {
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Opslaan…</Badge>
     }
+    if (saveStatus === "error") {
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Opslaan mislukt</Badge>
+    }
+    if (isDirty) {
+      return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Niet-opgeslagen wijzigingen</Badge>
+    }
+    if (saveStatus === "saved") {
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Opgeslagen ✓</Badge>
+    }
+    return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200">Geen wijzigingen</Badge>
   }
 
   if (isLoading) {
@@ -395,12 +435,20 @@ export function CompanyProfile() {
 
   return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
-            <p className="text-gray-600">Alle veranderingen worden automatisch opgeslagen</p>
+            <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen. Klik op "Opslaan" om je updates te bewaren.</p>
           </div>
-          {getSaveStatusBadge()}
+          <div className="flex items-center gap-3">
+            {getSaveStatusBadge()}
+            <Button
+                onClick={() => void saveData()}
+                disabled={saveStatus === "saving" || !isDirty}
+            >
+              {saveStatus === "saving" ? "Opslaan…" : "Opslaan"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -419,7 +467,11 @@ export function CompanyProfile() {
                   <Input
                       id="company-name"
                       value={companyData.name}
-                      onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
+                      onChange={(e) => handleCompanyDataChange(prev => {
+                        const value = e.target.value
+                        if (prev.name === value) return prev
+                        return { ...prev, name: value }
+                      })}
                       className="mt-1"
                   />
                 </div>
@@ -427,7 +479,10 @@ export function CompanyProfile() {
                   <Label htmlFor="industry">Industrie</Label>
                   <Select
                       value={companyData.industry}
-                      onValueChange={(value) => setCompanyData({ ...companyData, industry: value })}
+                      onValueChange={(value) => handleCompanyDataChange(prev => {
+                        if (prev.industry === value) return prev
+                        return { ...prev, industry: value }
+                      })}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue />
@@ -450,7 +505,10 @@ export function CompanyProfile() {
                   <Label htmlFor="company-size">Bedrijf's grootte</Label>
                   <Select
                       value={companyData.size}
-                      onValueChange={(value) => setCompanyData({ ...companyData, size: value })}
+                      onValueChange={(value) => handleCompanyDataChange(prev => {
+                        if (prev.size === value) return prev
+                        return { ...prev, size: value }
+                      })}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue />
@@ -469,7 +527,11 @@ export function CompanyProfile() {
                   <Input
                       id="founded"
                       value={companyData.founded}
-                      onChange={(e) => setCompanyData({ ...companyData, founded: e.target.value })}
+                      onChange={(e) => handleCompanyDataChange(prev => {
+                        const value = e.target.value
+                        if (prev.founded === value) return prev
+                        return { ...prev, founded: value }
+                      })}
                       placeholder="Year founded"
                       className="mt-1"
                   />
@@ -481,7 +543,11 @@ export function CompanyProfile() {
                 <Textarea
                     id="description"
                     value={companyData.description}
-                    onChange={(e) => setCompanyData({ ...companyData, description: e.target.value })}
+                    onChange={(e) => handleCompanyDataChange(prev => {
+                      const value = e.target.value
+                      if (prev.description === value) return prev
+                      return { ...prev, description: value }
+                    })}
                     rows={3}
                     className="mt-1"
                     placeholder="Describe your company..."
@@ -504,7 +570,11 @@ export function CompanyProfile() {
                     <Input
                         id="website"
                         value={companyData.website}
-                        onChange={(e) => setCompanyData({ ...companyData, website: e.target.value })}
+                        onChange={(e) => handleCompanyDataChange(prev => {
+                          const value = e.target.value
+                          if (prev.website === value) return prev
+                          return { ...prev, website: value }
+                        })}
                         placeholder="https://yourcompany.com"
                         className="mt-1"
                     />
@@ -518,7 +588,11 @@ export function CompanyProfile() {
                     <Input
                         id="phone"
                         value={companyData.phone}
-                        onChange={(e) => setCompanyData({ ...companyData, phone: e.target.value })}
+                        onChange={(e) => handleCompanyDataChange(prev => {
+                          const value = e.target.value
+                          if (prev.phone === value) return prev
+                          return { ...prev, phone: value }
+                        })}
                         placeholder="+1 (555) 123-4567"
                         className="mt-1"
                     />
@@ -532,7 +606,11 @@ export function CompanyProfile() {
                     <Input
                         id="email"
                         value={companyData.email}
-                        onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
+                        onChange={(e) => handleCompanyDataChange(prev => {
+                          const value = e.target.value
+                          if (prev.email === value) return prev
+                          return { ...prev, email: value }
+                        })}
                         placeholder="contact@company.com"
                         className="mt-1"
                     />
@@ -546,7 +624,11 @@ export function CompanyProfile() {
                     <Textarea
                         id="address"
                         value={companyData.address}
-                        onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
+                        onChange={(e) => handleCompanyDataChange(prev => {
+                          const value = e.target.value
+                          if (prev.address === value) return prev
+                          return { ...prev, address: value }
+                        })}
                         rows={2}
                         placeholder="Company address"
                         className="mt-1"
@@ -588,15 +670,18 @@ export function CompanyProfile() {
                               variant={companyData.operatingDays[key].isOpen ? "default" : "outline"}
                               size="sm"
                               onClick={() => {
-                                setCompanyData({
-                                  ...companyData,
-                                  operatingDays: {
-                                    ...companyData.operatingDays,
-                                    [key]: {
-                                      ...companyData.operatingDays[key],
-                                      isOpen: !companyData.operatingDays[key].isOpen,
+                                handleCompanyDataChange(prev => {
+                                  const currentDay = prev.operatingDays[key]
+                                  return {
+                                    ...prev,
+                                    operatingDays: {
+                                      ...prev.operatingDays,
+                                      [key]: {
+                                        ...currentDay,
+                                        isOpen: !currentDay.isOpen,
+                                      },
                                     },
-                                  },
+                                  }
                                 })
                               }}
                           >
@@ -611,15 +696,20 @@ export function CompanyProfile() {
                                     type="time"
                                     value={companyData.operatingDays[key].openTime}
                                     onChange={(e) => {
-                                      setCompanyData({
-                                        ...companyData,
-                                        operatingDays: {
-                                          ...companyData.operatingDays,
-                                          [key]: {
-                                            ...companyData.operatingDays[key],
-                                            openTime: e.target.value,
+                                      const value = e.target.value
+                                      handleCompanyDataChange(prev => {
+                                        const currentDay = prev.operatingDays[key]
+                                        if (currentDay.openTime === value) return prev
+                                        return {
+                                          ...prev,
+                                          operatingDays: {
+                                            ...prev.operatingDays,
+                                            [key]: {
+                                              ...currentDay,
+                                              openTime: value,
+                                            },
                                           },
-                                        },
+                                        }
                                       })
                                     }}
                                     className="w-32"
@@ -631,15 +721,20 @@ export function CompanyProfile() {
                                     type="time"
                                     value={companyData.operatingDays[key].closeTime}
                                     onChange={(e) => {
-                                      setCompanyData({
-                                        ...companyData,
-                                        operatingDays: {
-                                          ...companyData.operatingDays,
-                                          [key]: {
-                                            ...companyData.operatingDays[key],
-                                            closeTime: e.target.value,
+                                      const value = e.target.value
+                                      handleCompanyDataChange(prev => {
+                                        const currentDay = prev.operatingDays[key]
+                                        if (currentDay.closeTime === value) return prev
+                                        return {
+                                          ...prev,
+                                          operatingDays: {
+                                            ...prev.operatingDays,
+                                            [key]: {
+                                              ...currentDay,
+                                              closeTime: value,
+                                            },
                                           },
-                                        },
+                                        }
                                       })
                                     }}
                                     className="w-32"
