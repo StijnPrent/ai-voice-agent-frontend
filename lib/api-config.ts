@@ -1,6 +1,6 @@
 export const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3002";
 
-function authHeaders() {
+export function authHeaders() {
     return {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${localStorage.getItem("jwt")}`,

@@ -8,12 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
-  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Users, Calendar
+  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Users, Calendar, PhoneCall
 } from "lucide-react"
 import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
 import { VoiceAgentSettings }    from "./components/voice-agent-settings"
 import { Analytics }              from "./components/analytics"
+import { CallTranscripts }        from "./components/call-transcripts"
 import { BACKEND_URL } from "@/lib/api-config"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
@@ -130,12 +131,13 @@ export default function Dashboard() {
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={attemptTabChange} className="space-y-6">
-            <TabsList className="grid grid-cols-5">
+            <TabsList className="grid grid-cols-6">
               <TabsTrigger value="overview"><BarChart3 className="h-4 w-4 mr-1" />Overzicht</TabsTrigger>
               <TabsTrigger value="company" ><Building2 className="h-4 w-4 mr-1" />Bedrijf</TabsTrigger>
               <TabsTrigger value="appointments"><Calendar className="h-4 w-4 mr-1" />Afspraken</TabsTrigger>
               <TabsTrigger value="integrations"><Plug className="h-4 w-4 mr-1" />Integraties</TabsTrigger>
               <TabsTrigger value="voice-agent"><Phone className="h-4 w-4 mr-1" />Stem instellingen</TabsTrigger>
+              <TabsTrigger value="calls"><PhoneCall className="h-4 w-4 mr-1" />Gesprekken</TabsTrigger>
             </TabsList>
 
             {/* Overview Panel */}
@@ -223,6 +225,11 @@ export default function Dashboard() {
             {/* Voice Agent Panel */}
             <TabsContent value="voice-agent">
               <VoiceAgentSettings onDirtyChange={(dirty) => handleTabDirtyChange("voice-agent", dirty)} />
+            </TabsContent>
+
+            {/* Calls Panel */}
+            <TabsContent value="calls">
+              <CallTranscripts />
             </TabsContent>
           </Tabs>
         </div>
