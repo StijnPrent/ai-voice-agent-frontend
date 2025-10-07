@@ -42,7 +42,7 @@ interface PhoneNumberEntry {
   totalCalls?: number | null
   calls?: CallSummary[]
 }
-
+        
 interface CallMessage {
   role: string
   content: string
