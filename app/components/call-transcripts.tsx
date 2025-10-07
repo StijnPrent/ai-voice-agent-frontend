@@ -24,15 +24,8 @@ import {
   Search,
 } from "lucide-react"
 
-import { BACKEND_URL, authHeaders } from "@/lib/api-config"
+import { getCallPhoneNumbers, getCallTranscript } from "@/lib/api-config"
 import { cn } from "@/lib/utils"
-
-interface PhoneNumberEntry {
-  number: string
-  lastCallSid?: string | null
-  lastSeenAt?: string | null
-  totalCalls?: number | null
-}
 
 interface CallSummary {
   callSid: string
@@ -42,6 +35,14 @@ interface CallSummary {
   vapiCallId?: string | null
 }
 
+interface PhoneNumberEntry {
+  number: string
+  lastCallSid?: string | null
+  lastSeenAt?: string | null
+  totalCalls?: number | null
+  calls?: CallSummary[]
+}
+        
 interface CallMessage {
   role: string
   content: string
@@ -125,6 +126,14 @@ function normalisePhoneNumbers(payload: unknown): PhoneNumberEntry[] {
 
       if (typeof totalCalls === "number" && Number.isFinite(totalCalls)) {
         normalised.totalCalls = totalCalls
+      }
+
+      const callsPayload = Array.isArray((item as any).calls)
+        ? normaliseCallSummaries((item as any).calls, phoneNumber)
+        : []
+
+      if (callsPayload.length > 0) {
+        normalised.calls = callsPayload
       }
 
       entries.push(normalised)
@@ -341,10 +350,6 @@ export function CallTranscripts() {
   const [numbersLoading, setNumbersLoading] = useState(false)
   const [numbersError, setNumbersError] = useState<string | null>(null)
 
-  const [callSummaries, setCallSummaries] = useState<CallSummary[]>([])
-  const [callsLoading, setCallsLoading] = useState(false)
-  const [callsError, setCallsError] = useState<string | null>(null)
-
   const [selectedCallSid, setSelectedCallSid] = useState<string | null>(null)
   const [transcript, setTranscript] = useState<CallTranscriptData | null>(null)
   const [transcriptLoading, setTranscriptLoading] = useState(false)
@@ -354,15 +359,7 @@ export function CallTranscripts() {
     setNumbersLoading(true)
     setNumbersError(null)
     try {
-      const response = await fetch(`${BACKEND_URL}/calls/phone-numbers?limit=50`, {
-        headers: authHeaders(),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Kon telefoonnummers niet laden (status ${response.status})`)
-      }
-
-      const payload = await response.json()
+      const payload = await getCallPhoneNumbers(50)
       const entries = normalisePhoneNumbers(payload).filter((entry) => entry.number.length > 0)
 
       setPhoneNumbers(entries)
@@ -377,86 +374,19 @@ export function CallTranscripts() {
       setNumbersError(error?.message ?? "Onbekende fout bij het ophalen van telefoonnummers")
       setPhoneNumbers([])
       setSelectedPhoneNumber(null)
+      setSelectedCallSid(null)
+      setTranscript(null)
+      setTranscriptError(null)
     } finally {
       setNumbersLoading(false)
     }
   }, [])
 
-  const loadCallSummaries = useCallback(
-    async (phoneNumber: string) => {
-      setCallsLoading(true)
-      setCallsError(null)
-      setCallSummaries([])
-      setSelectedCallSid(null)
-      setTranscript(null)
-      setTranscriptError(null)
-
-      try {
-        const response = await fetch(
-          `${BACKEND_URL}/calls?phoneNumber=${encodeURIComponent(phoneNumber)}`,
-          {
-            headers: authHeaders(),
-          },
-        )
-
-        if (response.status === 404) {
-          const fallback = phoneNumbers.find((entry) => entry.number === phoneNumber)
-          if (fallback?.lastCallSid) {
-            setCallSummaries([
-              {
-                callSid: fallback.lastCallSid,
-                fromNumber: phoneNumber,
-                startedAt: fallback.lastSeenAt ?? null,
-                endedAt: null,
-                vapiCallId: null,
-              },
-            ])
-            setSelectedCallSid(fallback.lastCallSid)
-          } else {
-            setCallsError("Geen gesprekken gevonden voor dit nummer")
-          }
-          return
-        }
-
-        if (!response.ok) {
-          throw new Error(`Kon gesprekken niet laden (status ${response.status})`)
-        }
-
-        const payload = await response.json()
-        const summaries = normaliseCallSummaries(payload, phoneNumber)
-
-        if (summaries.length === 0) {
-          const fallback = phoneNumbers.find((entry) => entry.number === phoneNumber)
-          if (fallback?.lastCallSid) {
-            summaries.push({
-              callSid: fallback.lastCallSid,
-              fromNumber: phoneNumber,
-              startedAt: fallback.lastSeenAt ?? null,
-              endedAt: null,
-              vapiCallId: null,
-            })
-          }
-        }
-
-        setCallSummaries(summaries)
-        setSelectedCallSid(summaries[0]?.callSid ?? null)
-      } catch (error: any) {
-        console.error("Failed to fetch call summaries", error)
-        setCallsError(error?.message ?? "Onbekende fout bij het ophalen van gesprekken")
-      } finally {
-        setCallsLoading(false)
-      }
-    },
-    [phoneNumbers],
-  )
-
   const loadTranscript = useCallback(async (callSid: string) => {
     setTranscriptLoading(true)
     setTranscriptError(null)
     try {
-      const response = await fetch(`${BACKEND_URL}/calls/${encodeURIComponent(callSid)}`, {
-        headers: authHeaders(),
-      })
+      const response = await getCallTranscript(callSid)
 
       if (response.status === 404) {
         setTranscript(null)
@@ -497,11 +427,43 @@ export function CallTranscripts() {
     loadPhoneNumbers()
   }, [loadPhoneNumbers])
 
-  useEffect(() => {
-    if (selectedPhoneNumber) {
-      loadCallSummaries(selectedPhoneNumber)
+  const callSummaries = useMemo<CallSummary[]>(() => {
+    if (!selectedPhoneNumber) return []
+    const entry = phoneNumbers.find((candidate) => candidate.number === selectedPhoneNumber)
+    if (!entry) return []
+
+    if (entry.calls && entry.calls.length > 0) {
+      return entry.calls.slice()
     }
-  }, [selectedPhoneNumber, loadCallSummaries])
+
+    if (entry.lastCallSid) {
+      return [
+        {
+          callSid: entry.lastCallSid,
+          fromNumber: selectedPhoneNumber,
+          startedAt: entry.lastSeenAt ?? null,
+          endedAt: null,
+          vapiCallId: null,
+        },
+      ]
+    }
+
+    return []
+  }, [phoneNumbers, selectedPhoneNumber])
+
+  useEffect(() => {
+    if (callSummaries.length === 0) {
+      setSelectedCallSid(null)
+      return
+    }
+
+    setSelectedCallSid((current) => {
+      if (current && callSummaries.some((call) => call.callSid === current)) {
+        return current
+      }
+      return callSummaries[0].callSid
+    })
+  }, [callSummaries])
 
   useEffect(() => {
     if (selectedCallSid) {
@@ -643,10 +605,10 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => loadCallSummaries(selectedPhoneNumber)}
-                disabled={callsLoading}
+                onClick={loadPhoneNumbers}
+                disabled={numbersLoading}
               >
-                {callsLoading ? (
+                {numbersLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <RefreshCcw className="mr-2 h-4 w-4" />
@@ -656,17 +618,9 @@ export function CallTranscripts() {
             )}
           </CardHeader>
           <CardContent>
-            {callsError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Kon gesprekken niet laden</AlertTitle>
-                <AlertDescription>{callsError}</AlertDescription>
-              </Alert>
-            )}
-
             <ScrollArea className="h-[260px] pr-2">
               <div className="space-y-3">
-                {callsLoading && (
+                {numbersLoading && (
                   Array.from({ length: 4 }).map((_, index) => (
                     <div
                       key={`call-skeleton-${index}`}
@@ -678,13 +632,13 @@ export function CallTranscripts() {
                   ))
                 )}
 
-                {!callsLoading && callSummaries.length === 0 && (
+                {!numbersLoading && callSummaries.length === 0 && (
                   <div className="rounded-xl border border-dashed border-muted bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                     Geen gesprekken gevonden voor dit nummer.
                   </div>
                 )}
 
-                {!callsLoading &&
+                {!numbersLoading &&
                   callSummaries.map((call) => {
                     const isActive = call.callSid === selectedCallSid
                     return (

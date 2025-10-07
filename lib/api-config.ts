@@ -7,6 +7,35 @@ export function authHeaders() {
     };
 }
 
+/* -------------------------------- Call Logs -------------------------------- */
+export async function getCallPhoneNumbers(limit = 50) {
+    const url = new URL(`${BACKEND_URL}/calls/phone-numbers`);
+    if (typeof limit === "number" && Number.isFinite(limit)) {
+        const normalisedLimit = Math.min(200, Math.max(1, Math.floor(limit)));
+        url.searchParams.set("limit", String(normalisedLimit));
+    }
+
+    const res = await fetch(url.toString(), {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to fetch call phone numbers (status ${res.status})`);
+    }
+
+    return res.json();
+}
+
+export async function getCallTranscript(callSid: string) {
+    if (!callSid) {
+        throw new Error("Call SID is required");
+    }
+
+    return fetch(`${BACKEND_URL}/calls/${encodeURIComponent(callSid)}`, {
+        headers: authHeaders(),
+    });
+}
+
 /* ----------------------------- Appointment Types ----------------------------- */
 export async function getAppointmentTypes() {
     const res = await fetch(`${BACKEND_URL}/scheduling/appointment-types`, {
