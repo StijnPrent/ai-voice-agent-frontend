@@ -363,12 +363,64 @@ export function CallTranscripts() {
       const entries = normalisePhoneNumbers(payload).filter((entry) => entry.number.length > 0)
 
       setPhoneNumbers(entries)
+
+      let resolvedNumber: string | null = null
       setSelectedPhoneNumber((prev) => {
         if (prev && entries.some((entry) => entry.number === prev)) {
+          resolvedNumber = prev
           return prev
         }
-        return entries[0]?.number ?? null
+
+        resolvedNumber = entries[0]?.number ?? null
+        return resolvedNumber
       })
+
+      if (!resolvedNumber && entries.length > 0) {
+        resolvedNumber = entries[0].number
+      }
+
+      const matchingEntry = resolvedNumber
+        ? entries.find((entry) => entry.number === resolvedNumber)
+        : undefined
+
+      let resolvedCallSid: string | null = null
+      if (matchingEntry) {
+        if (
+          Array.isArray(matchingEntry.calls) &&
+          matchingEntry.calls.length > 0 &&
+          isNonEmptyString(matchingEntry.calls[0].callSid)
+        ) {
+          resolvedCallSid = matchingEntry.calls[0].callSid
+        } else if (isNonEmptyString(matchingEntry.lastCallSid)) {
+          resolvedCallSid = matchingEntry.lastCallSid
+        }
+      }
+
+      let nextCallSidSelection: string | null = null
+
+      setSelectedCallSid((current) => {
+        if (current && matchingEntry) {
+          const hasCurrentCall = Array.isArray(matchingEntry.calls)
+            ? matchingEntry.calls.some((call) => call.callSid === current)
+            : false
+
+          if (
+            hasCurrentCall ||
+            (isNonEmptyString(matchingEntry.lastCallSid) && matchingEntry.lastCallSid === current)
+          ) {
+            nextCallSidSelection = current
+            return current
+          }
+        }
+
+        nextCallSidSelection = resolvedCallSid
+        return resolvedCallSid
+      })
+
+      if (!nextCallSidSelection) {
+        setTranscript(null)
+        setTranscriptError(null)
+      }
     } catch (error: any) {
       console.error("Failed to fetch phone numbers", error)
       setNumbersError(error?.message ?? "Onbekende fout bij het ophalen van telefoonnummers")
@@ -558,7 +610,20 @@ export function CallTranscripts() {
                   return (
                     <button
                       key={entry.number}
-                      onClick={() => setSelectedPhoneNumber(entry.number)}
+                      onClick={() => {
+                        setSelectedPhoneNumber(entry.number)
+                        const firstCallCandidate = Array.isArray(entry.calls) && entry.calls.length > 0
+                          ? entry.calls[0].callSid
+                          : entry.lastCallSid ?? null
+                        const nextCallSid = isNonEmptyString(firstCallCandidate)
+                          ? firstCallCandidate
+                          : null
+                        setSelectedCallSid(nextCallSid)
+                        if (!nextCallSid) {
+                          setTranscript(null)
+                          setTranscriptError(null)
+                        }
+                      }}
                       className={cn(
                         "w-full rounded-xl border p-4 text-left transition",
                         isActive
