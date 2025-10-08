@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import {
   Card,
@@ -24,7 +24,7 @@ import {
   Search,
 } from "lucide-react"
 
-import { getCallPhoneNumbers, getCallTranscript } from "@/lib/api-config"
+import { getCallPhoneNumbers, getCallTranscript, getCallsForPhoneNumber } from "@/lib/api-config"
 import { cn } from "@/lib/utils"
 
 interface CallSummary {
@@ -350,6 +350,12 @@ export function CallTranscripts() {
   const [numbersLoading, setNumbersLoading] = useState(false)
   const [numbersError, setNumbersError] = useState<string | null>(null)
 
+  const [callSummaries, setCallSummaries] = useState<CallSummary[]>([])
+  const [callsLoading, setCallsLoading] = useState(false)
+  const [callsError, setCallsError] = useState<string | null>(null)
+  const [callHistoryReloadToken, setCallHistoryReloadToken] = useState(0)
+  const previousPhoneNumberRef = useRef<string | null>(null)
+
   const [selectedCallSid, setSelectedCallSid] = useState<string | null>(null)
   const [transcript, setTranscript] = useState<CallTranscriptData | null>(null)
   const [transcriptLoading, setTranscriptLoading] = useState(false)
@@ -364,75 +370,101 @@ export function CallTranscripts() {
 
       setPhoneNumbers(entries)
 
-      let resolvedNumber: string | null = null
-      setSelectedPhoneNumber((prev) => {
-        if (prev && entries.some((entry) => entry.number === prev)) {
-          resolvedNumber = prev
-          return prev
-        }
+      const previousSelection = selectedPhoneNumber
+      const nextSelection =
+        previousSelection && entries.some((entry) => entry.number === previousSelection)
+          ? previousSelection
+          : entries[0]?.number ?? null
 
-        resolvedNumber = entries[0]?.number ?? null
-        return resolvedNumber
-      })
+      setSelectedPhoneNumber(nextSelection)
 
-      if (!resolvedNumber && entries.length > 0) {
-        resolvedNumber = entries[0].number
-      }
-
-      const matchingEntry = resolvedNumber
-        ? entries.find((entry) => entry.number === resolvedNumber)
-        : undefined
-
-      let resolvedCallSid: string | null = null
-      if (matchingEntry) {
-        if (
-          Array.isArray(matchingEntry.calls) &&
-          matchingEntry.calls.length > 0 &&
-          isNonEmptyString(matchingEntry.calls[0].callSid)
-        ) {
-          resolvedCallSid = matchingEntry.calls[0].callSid
-        } else if (isNonEmptyString(matchingEntry.lastCallSid)) {
-          resolvedCallSid = matchingEntry.lastCallSid
-        }
-      }
-
-      let nextCallSidSelection: string | null = null
-
-      setSelectedCallSid((current) => {
-        if (current && matchingEntry) {
-          const hasCurrentCall = Array.isArray(matchingEntry.calls)
-            ? matchingEntry.calls.some((call) => call.callSid === current)
-            : false
-
-          if (
-            hasCurrentCall ||
-            (isNonEmptyString(matchingEntry.lastCallSid) && matchingEntry.lastCallSid === current)
-          ) {
-            nextCallSidSelection = current
-            return current
-          }
-        }
-
-        nextCallSidSelection = resolvedCallSid
-        return resolvedCallSid
-      })
-
-      if (!nextCallSidSelection) {
+      if (!nextSelection) {
+        setCallSummaries([])
+        setSelectedCallSid(null)
         setTranscript(null)
         setTranscriptError(null)
+        setCallsError(null)
+        setCallsLoading(false)
+        return
+      }
+
+      if (nextSelection === previousSelection) {
+        setCallHistoryReloadToken((token) => token + 1)
       }
     } catch (error: any) {
       console.error("Failed to fetch phone numbers", error)
       setNumbersError(error?.message ?? "Onbekende fout bij het ophalen van telefoonnummers")
       setPhoneNumbers([])
       setSelectedPhoneNumber(null)
+      setCallSummaries([])
       setSelectedCallSid(null)
+      setCallsError(error?.message ?? "Kon gesprekken voor dit nummer niet laden")
+      setCallsLoading(false)
       setTranscript(null)
       setTranscriptError(null)
     } finally {
       setNumbersLoading(false)
     }
-  }, [])
+  }, [selectedPhoneNumber])
+
+  useEffect(() => {
+    if (previousPhoneNumberRef.current !== selectedPhoneNumber) {
+      previousPhoneNumberRef.current = selectedPhoneNumber
+
+      if (!selectedPhoneNumber) {
+        setCallSummaries([])
+        setCallsError(null)
+        setCallsLoading(false)
+        setSelectedCallSid(null)
+        setTranscript(null)
+        setTranscriptError(null)
+        return
+      }
+
+      setCallSummaries([])
+      setCallsError(null)
+      setSelectedCallSid(null)
+      setTranscript(null)
+      setTranscriptError(null)
+    }
+  }, [selectedPhoneNumber])
+
+  useEffect(() => {
+    if (!selectedPhoneNumber) {
+      return
+    }
+
+    let cancelled = false
+
+    const fetchCallHistory = async () => {
+      setCallsLoading(true)
+      setCallsError(null)
+
+      try {
+        const payload = await getCallsForPhoneNumber(selectedPhoneNumber, 50)
+        if (cancelled) return
+        const normalisedCalls = normaliseCallSummaries(payload, selectedPhoneNumber)
+        setCallSummaries(normalisedCalls)
+      } catch (error: any) {
+        if (cancelled) return
+        console.error("Failed to fetch calls for phone number", error)
+        setCallsError(
+          error?.message ?? "Onbekende fout bij het ophalen van gesprekken voor dit nummer",
+        )
+        setCallSummaries([])
+      } finally {
+        if (!cancelled) {
+          setCallsLoading(false)
+        }
+      }
+    }
+
+    fetchCallHistory()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedPhoneNumber, callHistoryReloadToken])
 
   const loadTranscript = useCallback(async (callSid: string) => {
     setTranscriptLoading(true)
@@ -479,29 +511,10 @@ export function CallTranscripts() {
     loadPhoneNumbers()
   }, [loadPhoneNumbers])
 
-  const callSummaries = useMemo<CallSummary[]>(() => {
-    if (!selectedPhoneNumber) return []
-    const entry = phoneNumbers.find((candidate) => candidate.number === selectedPhoneNumber)
-    if (!entry) return []
-
-    if (entry.calls && entry.calls.length > 0) {
-      return entry.calls.slice()
-    }
-
-    if (entry.lastCallSid) {
-      return [
-        {
-          callSid: entry.lastCallSid,
-          fromNumber: selectedPhoneNumber,
-          startedAt: entry.lastSeenAt ?? null,
-          endedAt: null,
-          vapiCallId: null,
-        },
-      ]
-    }
-
-    return []
-  }, [phoneNumbers, selectedPhoneNumber])
+  const refreshCallHistory = useCallback(() => {
+    if (!selectedPhoneNumber) return
+    setCallHistoryReloadToken((token) => token + 1)
+  }, [selectedPhoneNumber])
 
   useEffect(() => {
     if (callSummaries.length === 0) {
@@ -611,17 +624,8 @@ export function CallTranscripts() {
                     <button
                       key={entry.number}
                       onClick={() => {
-                        setSelectedPhoneNumber(entry.number)
-                        const firstCallCandidate = Array.isArray(entry.calls) && entry.calls.length > 0
-                          ? entry.calls[0].callSid
-                          : entry.lastCallSid ?? null
-                        const nextCallSid = isNonEmptyString(firstCallCandidate)
-                          ? firstCallCandidate
-                          : null
-                        setSelectedCallSid(nextCallSid)
-                        if (!nextCallSid) {
-                          setTranscript(null)
-                          setTranscriptError(null)
+                        if (entry.number !== selectedPhoneNumber) {
+                          setSelectedPhoneNumber(entry.number)
                         }
                       }}
                       className={cn(
@@ -670,10 +674,10 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={loadPhoneNumbers}
-                disabled={numbersLoading}
+                onClick={refreshCallHistory}
+                disabled={callsLoading}
               >
-                {numbersLoading ? (
+                {callsLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <RefreshCcw className="mr-2 h-4 w-4" />
@@ -683,9 +687,16 @@ export function CallTranscripts() {
             )}
           </CardHeader>
           <CardContent>
+            {callsError && !callsLoading && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Fout bij laden</AlertTitle>
+                <AlertDescription>{callsError}</AlertDescription>
+              </Alert>
+            )}
             <ScrollArea className="h-[260px] pr-2">
               <div className="space-y-3">
-                {numbersLoading && (
+                {callsLoading && (
                   Array.from({ length: 4 }).map((_, index) => (
                     <div
                       key={`call-skeleton-${index}`}
@@ -697,13 +708,13 @@ export function CallTranscripts() {
                   ))
                 )}
 
-                {!numbersLoading && callSummaries.length === 0 && (
+                {!callsLoading && callSummaries.length === 0 && !callsError && (
                   <div className="rounded-xl border border-dashed border-muted bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                     Geen gesprekken gevonden voor dit nummer.
                   </div>
                 )}
 
-                {!numbersLoading &&
+                {!callsLoading &&
                   callSummaries.map((call) => {
                     const isActive = call.callSid === selectedCallSid
                     return (

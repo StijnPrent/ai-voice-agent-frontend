@@ -26,6 +26,30 @@ export async function getCallPhoneNumbers(limit = 50) {
     return res.json();
 }
 
+export async function getCallsForPhoneNumber(phoneNumber: string, limit = 50) {
+    if (!phoneNumber || !phoneNumber.trim()) {
+        throw new Error("Phone number is required");
+    }
+
+    const url = new URL(`${BACKEND_URL}/calls/by-phone-number`);
+    url.searchParams.set("phoneNumber", phoneNumber.trim());
+
+    if (typeof limit === "number" && Number.isFinite(limit)) {
+        const normalisedLimit = Math.min(200, Math.max(1, Math.floor(limit)));
+        url.searchParams.set("limit", String(normalisedLimit));
+    }
+
+    const res = await fetch(url.toString(), {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to fetch calls for phone number (status ${res.status})`);
+    }
+
+    return res.json();
+}
+
 export async function getCallTranscript(callSid: string) {
     if (!callSid) {
         throw new Error("Call SID is required");
