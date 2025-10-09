@@ -469,6 +469,7 @@ export function CallTranscripts() {
   const loadTranscript = useCallback(async (callSid: string) => {
     setTranscriptLoading(true)
     setTranscriptError(null)
+
     try {
       const response = await getCallTranscript(callSid)
 
@@ -491,13 +492,19 @@ export function CallTranscripts() {
       const payload = await response.json()
       const normalised = normaliseTranscript(payload)
 
-      if (!normalised) {
+      if (!normalised?.messages || !Array.isArray(normalised.messages) || normalised.messages.length === 0) {
         setTranscriptError("Het transcript bevat geen bruikbare informatie")
         setTranscript(null)
         return
       }
 
-      setTranscript(normalised)
+      // 🪄 Remove the first (system) message
+      const withoutSystem = {
+        ...normalised,
+        messages: normalised.messages.slice(1),
+      }
+
+      setTranscript(withoutSystem)
     } catch (error: any) {
       console.error("Failed to fetch transcript", error)
       setTranscriptError(error?.message ?? "Onbekende fout bij het ophalen van het transcript")
@@ -742,11 +749,6 @@ export function CallTranscripts() {
                             <span>{formatDuration(call.startedAt, call.endedAt)}</span>
                           </div>
                         </div>
-                        {call.vapiCallId && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Vapi call ID: {call.vapiCallId}
-                          </p>
-                        )}
                       </button>
                     )
                   })}
@@ -815,12 +817,6 @@ export function CallTranscripts() {
                     <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Duur</p>
                     <p className="font-medium text-foreground">{formatDuration(activeCall?.startedAt ?? transcript?.startedAt ?? null, activeCall?.endedAt ?? transcript?.endedAt ?? null)}</p>
                   </div>
-                  {transcript?.vapiCallId && (
-                    <div className="sm:col-span-2 lg:col-span-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Vapi call ID</p>
-                      <p className="font-medium text-foreground break-all">{transcript.vapiCallId}</p>
-                    </div>
-                  )}
                 </div>
 
                 <ScrollArea className="h-[360px] pr-2">
