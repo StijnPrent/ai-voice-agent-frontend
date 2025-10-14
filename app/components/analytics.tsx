@@ -115,7 +115,10 @@ export function Analytics() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, index) => (
-          <Card key={index}>
+          <Card
+            key={index}
+            className="bg-gradient-to-br from-blue-50 via-white to-blue-400 border-blue-200 shadow-lg text-slate-900"
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -123,16 +126,16 @@ export function Analytics() {
                   <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
                   <div className="flex items-center space-x-1 mt-1">
                     {metric.trend === "up" ? (
-                      <TrendingUp className="h-3 w-3 text-green-500" />
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 text-red-500" />
+                      <TrendingDown className="h-3 w-3 text-rose-500" />
                     )}
-                    <span className={`text-sm ${metric.trend === "up" ? "text-green-600" : "text-red-600"}`}>
+                    <span className={`text-sm ${metric.trend === "up" ? "text-emerald-700" : "text-rose-700"}`}>
                       {metric.change}
                     </span>
                   </div>
                 </div>
-                <metric.icon className="h-8 w-8 text-gray-400" />
+                <metric.icon className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
@@ -141,7 +144,7 @@ export function Analytics() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Call Outcomes */}
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
           <CardHeader>
             <CardTitle>Call Outcomes</CardTitle>
             <CardDescription>Distribution of call results</CardDescription>
@@ -155,8 +158,10 @@ export function Analytics() {
                     <span className="font-medium">{outcome.outcome}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">{outcome.count} calls</span>
-                    <Badge variant="outline">{outcome.percentage}%</Badge>
+                    <span className="text-sm text-slate-700">{outcome.count} calls</span>
+                    <Badge className="bg-white/80 border-blue-200 text-slate-900">
+                      {outcome.percentage}%
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -172,7 +177,7 @@ export function Analytics() {
         </Card>
 
         {/* Top Integrations */}
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
           <CardHeader>
             <CardTitle>Top Integrations</CardTitle>
             <CardDescription>Most active integrations by call volume</CardDescription>
@@ -186,7 +191,7 @@ export function Analytics() {
                     <p className="text-sm text-gray-600">{integration.calls} calls</p>
                   </div>
                   <div className="text-right">
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                    <Badge className="bg-emerald-100/80 text-emerald-800 border-emerald-200">
                       {integration.success}% success
                     </Badge>
                   </div>
@@ -198,7 +203,7 @@ export function Analytics() {
       </div>
 
       {/* Recent Calls */}
-      <Card>
+      <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
         <CardHeader>
           <CardTitle>Recent Calls</CardTitle>
           <CardDescription>Latest call activity and outcomes</CardDescription>
