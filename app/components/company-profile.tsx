@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, useEffect, useCallback, useRef} from "react"
+import {useState, useEffect, useCallback, useRef, ReactNode} from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,6 +65,29 @@ interface CustomInfoField {
 interface CompanyProfileProps {
   onDirtyChange?: (dirty: boolean) => void
 }
+
+interface InfoTooltipProps {
+  label: string
+  content: ReactNode
+  iconClassName?: string
+}
+
+const InfoTooltip = ({ label, content, iconClassName }: InfoTooltipProps) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button
+        type="button"
+        aria-label={`${label} toelichting`}
+        className="text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 rounded-full"
+      >
+        <Info className={cn("h-4 w-4", iconClassName)} />
+      </button>
+    </TooltipTrigger>
+    <TooltipContent side="top" align="start" className="max-w-xs text-sm leading-snug">
+      {content}
+    </TooltipContent>
+  </Tooltip>
+)
 
 export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const [companyData, setCompanyData] = useState<CompanyData>({
