@@ -17,6 +17,8 @@ import {ReplyStyle, VoiceSettings} from "@/lib/types/types";
 import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
 import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";
 import VoiceAgentSkeleton from "@/components/skeletons/VoiceAgentSkeleton";
+import {TooltipProvider} from "@/components/ui/tooltip";
+import {InfoTooltip} from "@/components/info-tooltip";
 
 interface VoiceAgentSettingsProps {
   onDirtyChange?: (dirty: boolean) => void
@@ -256,175 +258,210 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
-          <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
+    <TooltipProvider delayDuration={0}>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
+            <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {getSaveStatusBadge()}
+            <Button onClick={handleSave} disabled={saving || loading || !isDirty}>
+              {saving ? "Opslaan…" : "Alles opslaan"}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {getSaveStatusBadge()}
-          <Button onClick={handleSave} disabled={saving || loading || !isDirty}>
-            {saving ? "Opslaan…" : "Alles opslaan"}
-          </Button>
-        </div>
-      </div>
 
-      <Tabs defaultValue="voice" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="voice" className="flex items-center space-x-2">
-            <Volume2 className="h-4 w-4" />
-            <span>Stem</span>
-          </TabsTrigger>
-          <TabsTrigger value="personality" className="flex items-center space-x-2">
-            <Brain className="h-4 w-4" />
-            <span>Persoonlijkheid</span>
-          </TabsTrigger>
-          {/*<TabsTrigger value="behavior" className="flex items-center space-x-2">*/}
-          {/*  <MessageSquare className="h-4 w-4" />*/}
-          {/*  <span>Behavior</span>*/}
-          {/*</TabsTrigger>*/}
-          {/*<TabsTrigger value="advanced" className="flex items-center space-x-2">*/}
-          {/*  <Settings className="h-4 w-4" />*/}
-          {/*  <span>Advanced</span>*/}
-          {/*</TabsTrigger>*/}
-        </TabsList>
+        <Tabs defaultValue="voice" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="voice" className="flex items-center space-x-2">
+              <Volume2 className="h-4 w-4" />
+              <span>Stem</span>
+            </TabsTrigger>
+            <TabsTrigger value="personality" className="flex items-center space-x-2">
+              <Brain className="h-4 w-4" />
+              <span>Persoonlijkheid</span>
+            </TabsTrigger>
+            {/*<TabsTrigger value="behavior" className="flex items-center space-x-2">*/}
+            {/*  <MessageSquare className="h-4 w-4" />*/}
+            {/*  <span>Behavior</span>*/}
+            {/*</TabsTrigger>*/}
+            {/*<TabsTrigger value="advanced" className="flex items-center space-x-2">*/}
+            {/*  <Settings className="h-4 w-4" />*/}
+            {/*  <span>Advanced</span>*/}
+            {/*</TabsTrigger>*/}
+          </TabsList>
 
-        <TabsContent value="voice" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Voice Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Mic className="h-5 w-5" />
-                  <span>Voice Selection</span>
-                </CardTitle>
-                <CardDescription>Choose the voice for your AI agent</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {Object.entries(VoiceId).map(([voiceKey, elevenLabsId]) => (
+          <TabsContent value="voice" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Voice Selection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mic className="h-5 w-5" />
+                    <span>Stemselectie</span>
+                    <InfoTooltip
+                      label="Stemselectie"
+                      content={"Kies de stem die bellers horen. Klik op een optie om deze als standaard te gebruiken en druk op het afspeelicoon voor een voorbeeld."}
+                    />
+                  </CardTitle>
+                  <CardDescription>Kies welke stem jouw AI-agent gebruikt</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    {Object.entries(VoiceId).map(([voiceKey, elevenLabsId]) => (
                       <div
-                          key={voiceKey}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                              voiceSettings?.voiceId === elevenLabsId
-                                  ? "border-blue-500 bg-blue-50"
-                                  : "border-gray-200 hover:border-gray-300"
-                          }`}
-                          onClick={() => updateVoiceSettings(prev => {
-                            if (prev.voiceId === elevenLabsId) return prev
-                            return { ...prev, voiceId: elevenLabsId }
-                          })}
+                        key={voiceKey}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          voiceSettings?.voiceId === elevenLabsId
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => updateVoiceSettings(prev => {
+                          if (prev.voiceId === elevenLabsId) return prev
+                          return { ...prev, voiceId: elevenLabsId }
+                        })}
                       >
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium">{voiceKey}</h4>
                           <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                playPreview(voiceKey);
-                              }}
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playPreview(voiceKey);
+                            }}
                           >
                             {playingVoiceKey === voiceKey ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                           </Button>
                         </div>
                       </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Voice Parameters */}
+              {/* Voice Parameters */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span>Stemparameters</span>
+                    <InfoTooltip
+                      label="Stemparameters"
+                      content={"Pas aan hoe de stem klinkt zodat deze aansluit bij je bedrijf. Dit heeft direct invloed op alle toekomstige gesprekken."}
+                    />
+                  </CardTitle>
+                  <CardDescription>Stem eigenschappen verfijnen</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Label>Praatsnelheid</Label>
+                      <InfoTooltip
+                        label="Praatsnelheid"
+                        content={"Stel in hoe snel de agent spreekt. 1,0 is normaal tempo; langzamer geeft meer rust, sneller houdt gesprekken kort."}
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <Slider
+                        value={[voiceSettings.talkingSpeed]}
+                        onValueChange={(value) => updateVoiceSettings(prev => {
+                          const speed = value[0]
+                          if (prev.talkingSpeed === speed) return prev
+                          return { ...prev, talkingSpeed: speed }
+                        })}
+                        max={1.2}
+                        min={0.7}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Slow</span>
+                        <span>{voiceSettings.talkingSpeed}x</span>
+                        <span>Fast</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="greeting">Begroeting</Label>
+                      <InfoTooltip
+                        label="Begroeting"
+                        content={"Dit is de openingszin zodra een gesprek start. Gebruik duidelijke taal en noem eventueel je bedrijfsnaam."}
+                      />
+                    </div>
+                    <Textarea
+                        id="greeting"
+                        value={voiceSettings.welcomePhrase}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          updateVoiceSettings(prev => {
+                            if (prev.welcomePhrase === value) return prev
+                            return { ...prev, welcomePhrase: value }
+                          })
+                        }}
+                        rows={3}
+                        placeholder="Enter the greeting message"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Deze boodschap wordt uitgesproken zodra het gesprek begint</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="personality" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Voice Parameters</CardTitle>
-                <CardDescription>Fine-tune voice characteristics</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <span>AI persoonlijkheid</span>
+                  <InfoTooltip
+                    label="AI persoonlijkheid"
+                    content={"Bepaal de toon en stijl van antwoorden. Elke persoonlijkheid past de woordkeuze en houding van de agent automatisch aan."}
+                  />
+                </CardTitle>
+                <CardDescription>Bepaal hoe je AI-agent met bellers omgaat</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label>Speaking Speed</Label>
-                  <div className="mt-2">
-                    <Slider
-                      value={[voiceSettings.talkingSpeed]}
-                      onValueChange={(value) => updateVoiceSettings(prev => {
-                        const speed = value[0]
-                        if (prev.talkingSpeed === speed) return prev
-                        return { ...prev, talkingSpeed: speed }
-                      })}
-                      max={1.2}
-                      min={0.7}
-                      step={0.1}
-                      className="w-full"
+                  <div className="flex items-center gap-2">
+                    <Label>Persoonlijkheidstype</Label>
+                    <InfoTooltip
+                      label="Persoonlijkheidstype"
+                      content={"Selecteer het profiel dat het beste past bij je merk. Dit bepaalt hoe formeel, informeel of empathisch antwoorden klinken."}
                     />
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>Slow</span>
-                      <span>{voiceSettings.talkingSpeed}x</span>
-                      <span>Fast</span>
-                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="greeting">Greeting Message</Label>
-                  <Textarea
-                      id="greeting"
-                      value={voiceSettings.welcomePhrase}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        updateVoiceSettings(prev => {
-                          if (prev.welcomePhrase === value) return prev
-                          return { ...prev, welcomePhrase: value }
-                        })
-                      }}
-                      rows={3}
-                      placeholder="Enter the greeting message"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">This message will be spoken when the call begins</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                    {personalities.map((personality) => (
+                      <div
+                        key={personality.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          agentSettings.name === personality.id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => updateAgentSettings(prev => {
+                          if (prev.name === personality.id) return prev
+                          return {
+                            ...prev,
+                            name: personality.id,
+                            description: replyStyleDescriptions[personality.id],
+                          }
+                        })}
+                      >
+                        <h4 className="font-medium">{personality.name}</h4>
+                        <p className="text-sm text-gray-600">{personality.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="personality" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI persoonlijkheid</CardTitle>
-              <CardDescription>Bepaal hoe je AI-agent met bellers omgaat</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label>Persoonlijkheidstype</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                  {personalities.map((personality) => (
-                    <div
-                      key={personality.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        agentSettings.name === personality.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => updateAgentSettings(prev => {
-                        if (prev.name === personality.id) return prev
-                        return {
-                          ...prev,
-                          name: personality.id,
-                          description: replyStyleDescriptions[personality.id],
-                        }
-                      })}
-                    >
-                      <h4 className="font-medium">{personality.name}</h4>
-                      <p className="text-sm text-gray-600">{personality.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/*<TabsContent value="behavior" className="space-y-6">*/}
+          {/*<TabsContent value="behavior" className="space-y-6">*/}
         {/*  <Card>*/}
         {/*    <CardHeader>*/}
         {/*      <CardTitle>Call Behavior</CardTitle>*/}
@@ -529,6 +566,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
         {/*  </Card>*/}
         {/*</TabsContent>*/}
       </Tabs>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

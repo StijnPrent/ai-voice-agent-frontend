@@ -9,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Building2, MapPin, Phone, Mail, Globe, X } from "lucide-react"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import {BACKEND_URL} from "@/lib/api-config";
 import {CompanyProfileSkeleton} from "@/components/skeletons/CompanyProfileSkeleton";
+import {InfoTooltip} from "@/components/info-tooltip";
 
 // Types
 type DayKey =
@@ -434,7 +436,8 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   }
 
   return (
-      <div className="space-y-6">
+      <TooltipProvider delayDuration={0}>
+        <div className="space-y-6">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
@@ -463,7 +466,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="company-name">bedrijf's naam</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="company-name">bedrijf's naam</Label>
+                    <InfoTooltip
+                      label="bedrijf's naam"
+                      content="Gebruik de volledige handelsnaam die klanten herkennen, zodat informatie consequent wordt weergegeven."
+                    />
+                  </div>
                   <Input
                       id="company-name"
                       value={companyData.name}
@@ -476,7 +485,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="industry">Industrie</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="industry">Industrie</Label>
+                    <InfoTooltip
+                      label="Industrie"
+                      content="Kies de sector die het beste bij je bedrijf past, zodat de AI relevante voorbeelden en terminologie gebruikt."
+                    />
+                  </div>
                   <Select
                       value={companyData.industry}
                       onValueChange={(value) => handleCompanyDataChange(prev => {
@@ -502,7 +517,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="company-size">Bedrijf's grootte</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="company-size">Bedrijf's grootte</Label>
+                    <InfoTooltip
+                      label="Bedrijf's grootte"
+                      content="Selecteer het werknemersaantal dat het dichtst bij jullie situatie ligt. Dit helpt verwachtingen bij klanten te managen."
+                    />
+                  </div>
                   <Select
                       value={companyData.size}
                       onValueChange={(value) => handleCompanyDataChange(prev => {
@@ -523,7 +544,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="founded">Opgericht</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="founded">Opgericht</Label>
+                    <InfoTooltip
+                      label="Opgericht"
+                      content="Vul het jaar of de datum van oprichting in (bijv. 2018). Dit geeft context over jullie ervaring."
+                    />
+                  </div>
                   <Input
                       id="founded"
                       value={companyData.founded}
@@ -539,7 +566,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
               </div>
 
               <div>
-                <Label htmlFor="description">Bedrijf's beschrijving</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="description">Bedrijf's beschrijving</Label>
+                  <InfoTooltip
+                    label="Bedrijf's beschrijving"
+                    content="Beschrijf in twee tot drie zinnen wat jullie doen, voor wie en wat jullie onderscheidt."
+                  />
+                </div>
                 <Textarea
                     id="description"
                     value={companyData.description}
@@ -566,7 +599,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                 <div className="flex items-center space-x-3">
                   <Globe className="h-4 w-4 text-gray-500" />
                   <div className="flex-1">
-                    <Label htmlFor="website">Website</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="website">Website</Label>
+                      <InfoTooltip
+                        label="Website"
+                        content="Voer de volledige URL inclusief https:// in. Dit is de link die we kunnen delen met klanten."
+                      />
+                    </div>
                     <Input
                         id="website"
                         value={companyData.website}
@@ -584,7 +623,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                 <div className="flex items-center space-x-3">
                   <Phone className="h-4 w-4 text-gray-500" />
                   <div className="flex-1">
-                    <Label htmlFor="phone">Telefoonnummer</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="phone">Telefoonnummer</Label>
+                      <InfoTooltip
+                        label="Telefoonnummer"
+                        content="Gebruik het nummer waarop klanten je mogen bereiken, inclusief landcode voor internationale bellers."
+                      />
+                    </div>
                     <Input
                         id="phone"
                         value={companyData.phone}
@@ -602,7 +647,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                 <div className="flex items-center space-x-3">
                   <Mail className="h-4 w-4 text-gray-500" />
                   <div className="flex-1">
-                    <Label htmlFor="email">Contact Email</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="email">Contact Email</Label>
+                      <InfoTooltip
+                        label="Contact Email"
+                        content="Voer het e-mailadres in voor klantvragen of support. De AI verwijst hiernaar bij vervolgvragen."
+                      />
+                    </div>
                     <Input
                         id="email"
                         value={companyData.email}
@@ -620,7 +671,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                 <div className="flex items-start space-x-3">
                   <MapPin className="h-4 w-4 text-gray-500 mt-1" />
                   <div className="flex-1">
-                    <Label htmlFor="address">Adress</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="address">Adress</Label>
+                      <InfoTooltip
+                        label="Adress"
+                        content="Noteer straat, huisnummer, postcode en plaats. Dit helpt de AI om bezoekers de juiste locatie te geven."
+                      />
+                    </div>
                     <Textarea
                         id="address"
                         value={companyData.address}
@@ -649,7 +706,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
           <CardContent>
             <div className="space-y-6">
               <div>
-                <Label className="text-base font-medium">Openingstijden</Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-base font-medium">Openingstijden</Label>
+                  <InfoTooltip
+                    label="Openingstijden"
+                    content="Geef aan wanneer klanten jullie kunnen bereiken of bezoeken. De AI gebruikt dit om afspraken te plannen."
+                  />
+                </div>
                 <div className="mt-3 space-y-4">
                   {[
                     { day: "Maandag", key: "maandag" as DayKey },
@@ -661,8 +724,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                     { day: "Zondag", key: "zondag" as DayKey },
                   ].map(({ day, key }) => (
                       <div key={key} className="flex items-center space-x-4 p-3 border rounded-lg">
-                        <div className="w-20">
+                        <div className="w-28 flex items-center gap-2">
                           <Label className="text-sm font-medium">{day}</Label>
+                          <InfoTooltip
+                            label={`Openingstijden ${day}`}
+                            content="Gebruik de knop om de dag open of dicht te zetten en pas vervolgens de tijden aan."
+                            iconClassName="h-3.5 w-3.5"
+                          />
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button
@@ -691,7 +759,14 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                         {companyData.operatingDays[key].isOpen && (
                             <>
                               <div className="flex items-center space-x-2">
-                                <Label className="text-sm">Van:</Label>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-sm">Van:</Label>
+                                  <InfoTooltip
+                                    label="Openingstijd"
+                                    content="Selecteer het tijdstip waarop jullie openen. Gebruik de 24-uurs notatie."
+                                    iconClassName="h-3.5 w-3.5"
+                                  />
+                                </div>
                                 <Input
                                     type="time"
                                     value={companyData.operatingDays[key].openTime}
@@ -716,7 +791,14 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                                 />
                               </div>
                               <div className="flex items-center space-x-2">
-                                <Label className="text-sm">Tot:</Label>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-sm">Tot:</Label>
+                                  <InfoTooltip
+                                    label="Sluitingstijd"
+                                    content="Kies het tijdstip waarop jullie sluiten. Zorg dat dit later is dan de openingstijd."
+                                    iconClassName="h-3.5 w-3.5"
+                                  />
+                                </div>
                                 <Input
                                     type="time"
                                     value={companyData.operatingDays[key].closeTime}
@@ -779,7 +861,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         {/* Custom Company Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Extra bedrijf's informatie</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Extra bedrijf's informatie
+              <InfoTooltip
+                label="Extra bedrijf's informatie"
+                content="Voeg hier losse weetjes of belangrijke feiten toe die de AI moet kennen, zoals awards, doelgroepen of unieke werkwijzen."
+              />
+            </CardTitle>
             <CardDescription>
               Voeg specifieke details over je bedrijf toe. Nieuwe velden verschijnen automatisch zodra je begint te typen.
             </CardDescription>
@@ -788,8 +876,13 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             <div className="space-y-3">
               {customInfo.map((field, index) => (
                   <div key={field.id} className="flex items-center space-x-2">
+                    <InfoTooltip
+                      label={`Extra detail ${index + 1}`}
+                      content="Gebruik elk veld voor één los feit of verhaal. Houd het kort en concreet zodat de AI het makkelijk kan herhalen."
+                    />
                     <div className="flex-1">
                       <Input
+                          id={`custom-info-${field.id}`}
                           value={field.value}
                           onChange={(e) => handleCustomInfoChange(field.id, e.target.value)}
                           placeholder={`Bedrijf's informatie ${index + 1} (bijv. "Opgericht door voormalige Google-ingenieurs", "Bedient meer dan 10.000 klanten wereldwijd")`}
@@ -846,5 +939,6 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
           </CardContent>
         </Card>
       </div>
+    </TooltipProvider>
   )
 }
