@@ -296,15 +296,19 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
       // 4) Save custom info fields
       for (const field of customInfo) {
-        if (!field.value.trim()) continue;
+        const trimmedValue = field.value.trim();
+        if (!trimmedValue) continue;
+
+        const payload: Record<string, unknown> = { value: trimmedValue };
 
         if (field.persistedId) {
+          payload.id = field.persistedId;
           const response = await fetch(
               `${BACKEND_URL}/company/info`,
               {
                 method: "PUT",
                 headers,
-                body: JSON.stringify({ value: field.value, id: field.id  }),
+                body: JSON.stringify(payload),
               }
           );
           if (!response.ok) console.error("Error updating custom info", await response.text());
@@ -314,14 +318,14 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
               {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ value: field.value, id: field.id }),
+                body: JSON.stringify(payload),
               }
           );
           if (response.ok) {
             const created = await response.json();
             setCustomInfo(prev =>
                 prev.map(f =>
-                    f.id === field.id ? { ...f, persistedId: created.id } : f
+                    f.id === field.id ? { ...f, persistedId: created.id, id: String(created.id) } : f
                 )
             );
           } else {
