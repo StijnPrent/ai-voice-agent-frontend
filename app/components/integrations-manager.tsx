@@ -18,6 +18,7 @@ import {
 import {Plus, Settings, CheckCircle, AlertCircle, Search} from "lucide-react"
 import {BACKEND_URL} from "@/lib/api-config"
 import {Integration} from "@/lib/types/types";
+import {toast} from "@/hooks/use-toast"
 
 export function IntegrationsManager() {
     const [integrations, setIntegrations] = useState<Integration[]>([])
@@ -75,7 +76,11 @@ export function IntegrationsManager() {
             (integration as any).companyId ?? getCompanyIdFromJWT();
 
         if (!companyId) {
-            alert("Company ID not found.");
+            toast({
+                variant: "destructive",
+                title: "Company information missing",
+                description: "We couldn't find your company ID. Please sign in again and retry.",
+            })
             return;
         }
 
@@ -118,7 +123,12 @@ export function IntegrationsManager() {
             window.location.assign(authUrl);
         } catch (err: any) {
             console.error("Connect error:", err);
-            alert(err.message || "Failed to start Google OAuth.");
+            const message = err?.message || "Failed to start Google OAuth.";
+            toast({
+                variant: "destructive",
+                title: "Unable to start connection",
+                description: message,
+            })
         } finally {
             setConnectingId(null);
         }
@@ -144,6 +154,10 @@ export function IntegrationsManager() {
                     if (!res.ok) throw new Error(`Failed to load: ${res.status}`)
                     const data: Integration[] = await res.json()
                     setIntegrations(data)
+                    toast({
+                        title: "Disconnected",
+                        description: "The integration has been disconnected successfully.",
+                    })
                 } catch (err: any) {
                     setError(err.message || "Error fetching integrations")
                 } finally {
@@ -155,7 +169,12 @@ export function IntegrationsManager() {
             }
         } catch (error: any) {
             console.error('Disconnect error:', error);
-            alert(`Error: ${error.message}`);
+            const message = error?.message || "Failed to disconnect the integration.";
+            toast({
+                variant: "destructive",
+                title: "Unable to disconnect",
+                description: message,
+            })
         }
     };
 

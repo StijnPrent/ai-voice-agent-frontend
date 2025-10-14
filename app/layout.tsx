@@ -1,6 +1,7 @@
 import type {Metadata} from 'next'
 import './globals.css'
 import RouteGuard from "@/components/RouteGuard";
+import {Toaster} from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
     title: 'aivoiceagent',
@@ -19,6 +20,7 @@ export default function RootLayout({
         <RouteGuard>
             {children}
         </RouteGuard>
+        <Toaster/>
         </body>
         </html>
     )
