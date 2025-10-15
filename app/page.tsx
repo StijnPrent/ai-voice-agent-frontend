@@ -8,17 +8,232 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
-  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Users, Calendar, PhoneCall
+  CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Calendar, PhoneCall,
+  ArrowUpRight, ArrowDownRight, Minus, AlertTriangle
 } from "lucide-react"
 import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
 import { VoiceAgentSettings }    from "./components/voice-agent-settings"
-import { Analytics }              from "./components/analytics"
 import { CallTranscripts }        from "./components/call-transcripts"
 import { BACKEND_URL } from "@/lib/api-config"
+import { cn } from "@/lib/utils"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
 import Appointments from "@/app/components/appointments";
+
+type StatIdentifier = "avgDuration" | "totalDuration" | "callVolume"
+type StatTrend = "up" | "down" | "flat"
+
+interface OverviewStatConfig {
+  id: StatIdentifier
+  title: string
+  icon: typeof Clock
+  accent: string
+  iconColor: string
+}
+
+interface OverviewStat extends OverviewStatConfig {
+  value: string
+  helper: string
+  trend: StatTrend
+  isDemo?: boolean
+}
+
+interface RawCallMetrics {
+  averageCallDurationSeconds?: unknown
+  previousAverageCallDurationSeconds?: unknown
+  totalCallDurationSeconds?: unknown
+  previousTotalCallDurationSeconds?: unknown
+  totalCalls?: unknown
+  previousTotalCalls?: unknown
+}
+
+const STAT_ORDER: StatIdentifier[] = ["avgDuration", "totalDuration", "callVolume"]
+
+const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
+  avgDuration: {
+    id: "avgDuration",
+    title: "Gemiddelde gespreksduur",
+    icon: Clock,
+    accent: "from-blue-50 via-white to-blue-100",
+    iconColor: "text-blue-600",
+  },
+  totalDuration: {
+    id: "totalDuration",
+    title: "Totale beltijd (maand)",
+    icon: Activity,
+    accent: "from-emerald-50 via-white to-emerald-100",
+    iconColor: "text-emerald-600",
+  },
+  callVolume: {
+    id: "callVolume",
+    title: "Gesprekken deze maand",
+    icon: PhoneCall,
+    accent: "from-purple-50 via-white to-purple-100",
+    iconColor: "text-purple-600",
+  },
+}
+
+const PLACEHOLDER_STATS: OverviewStat[] = STAT_ORDER.map((id) => ({
+  ...STAT_CONFIG[id],
+  value: "—",
+  helper: "Live data wordt geladen...",
+  trend: "flat",
+}))
+
+const DEMO_STATS: OverviewStat[] = [
+  {
+    ...STAT_CONFIG.avgDuration,
+    value: "4m 12s",
+    helper: "+22s t.o.v. vorige maand (demo)",
+    trend: "up",
+    isDemo: true,
+  },
+  {
+    ...STAT_CONFIG.totalDuration,
+    value: "28u 14m",
+    helper: "+3u 10m t.o.v. vorige maand (demo)",
+    trend: "up",
+    isDemo: true,
+  },
+  {
+    ...STAT_CONFIG.callVolume,
+    value: "1.248",
+    helper: "+5.0% t.o.v. vorige maand (demo)",
+    trend: "up",
+    isDemo: true,
+  },
+]
+
+function normaliseNumber(value: unknown): number | null {
+  const numberValue = typeof value === "string" && value.trim() !== "" ? Number(value) : value
+  if (typeof numberValue !== "number" || Number.isNaN(numberValue) || !Number.isFinite(numberValue)) {
+    return null
+  }
+  return numberValue
+}
+
+function formatDuration(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.round(totalSeconds))
+  const hours = Math.floor(safeSeconds / 3600)
+  const minutes = Math.floor((safeSeconds % 3600) / 60)
+  const seconds = safeSeconds % 60
+
+  if (hours) {
+    return `${hours}u ${minutes}m`
+  }
+  if (minutes) {
+    return `${minutes}m ${seconds}s`
+  }
+  return `${seconds}s`
+}
+
+function formatDurationDifference(diffSeconds: number): string {
+  const rounded = Math.round(diffSeconds)
+  if (Math.abs(rounded) < 1) {
+    return "±0s"
+  }
+
+  const sign = rounded > 0 ? "+" : "-"
+  const absolute = Math.abs(rounded)
+  const hours = Math.floor(absolute / 3600)
+  const minutes = Math.floor((absolute % 3600) / 60)
+  const seconds = absolute % 60
+
+  const parts: string[] = []
+
+  if (hours) {
+    parts.push(`${hours}u`)
+    if (minutes) parts.push(`${minutes}m`)
+  } else if (minutes) {
+    parts.push(`${minutes}m`)
+    if (seconds) parts.push(`${seconds}s`)
+  } else {
+    parts.push(`${seconds}s`)
+  }
+
+  return `${sign}${parts.join(" ")}`
+}
+
+function formatPercentChange(current: number, previous: number): string {
+  if (previous === 0) {
+    return `${current > 0 ? "+" : ""}${new Intl.NumberFormat('nl-NL').format(current)} nieuwe`
+  }
+
+  const change = ((current - previous) / Math.abs(previous)) * 100
+  if (!Number.isFinite(change)) {
+    return "±0%"
+  }
+  return `${change > 0 ? "+" : ""}${change.toFixed(1)}%`
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('nl-NL').format(Math.round(value))
+}
+
+function determineTrend(current: number, previous: number | null): StatTrend {
+  if (previous === null) {
+    return "flat"
+  }
+  const delta = current - previous
+  if (Math.abs(delta) <= 0.5) {
+    return "flat"
+  }
+  return delta > 0 ? "up" : "down"
+}
+
+function buildStatsFromPayload(payload: RawCallMetrics): OverviewStat[] {
+  const averageDuration = normaliseNumber(payload?.averageCallDurationSeconds)
+  const previousAverageDuration = normaliseNumber(payload?.previousAverageCallDurationSeconds)
+  const totalDuration = normaliseNumber(payload?.totalCallDurationSeconds)
+  const previousTotalDuration = normaliseNumber(payload?.previousTotalCallDurationSeconds)
+  const totalCalls = normaliseNumber(payload?.totalCalls)
+  const previousTotalCalls = normaliseNumber(payload?.previousTotalCalls)
+
+  if (averageDuration === null || totalDuration === null || totalCalls === null) {
+    throw new Error("Incomplete metrics payload")
+  }
+
+  const statsById: Record<StatIdentifier, OverviewStat> = {
+    avgDuration: {
+      ...STAT_CONFIG.avgDuration,
+      value: formatDuration(averageDuration),
+      helper: previousAverageDuration !== null
+        ? `${formatDurationDifference(averageDuration - previousAverageDuration)} t.o.v. vorige maand`
+        : "Geen vergelijkingsdata beschikbaar",
+      trend: determineTrend(averageDuration, previousAverageDuration),
+    },
+    totalDuration: {
+      ...STAT_CONFIG.totalDuration,
+      value: formatDuration(totalDuration),
+      helper: previousTotalDuration !== null
+        ? `${formatDurationDifference(totalDuration - previousTotalDuration)} t.o.v. vorige maand`
+        : "Geen vergelijkingsdata beschikbaar",
+      trend: determineTrend(totalDuration, previousTotalDuration),
+    },
+    callVolume: {
+      ...STAT_CONFIG.callVolume,
+      value: formatNumber(totalCalls),
+      helper: previousTotalCalls !== null
+        ? `${formatPercentChange(totalCalls, previousTotalCalls)} t.o.v. vorige maand`
+        : "Geen vergelijkingsdata beschikbaar",
+      trend: determineTrend(totalCalls, previousTotalCalls),
+    },
+  }
+
+  return STAT_ORDER.map((id) => statsById[id])
+}
+
+function trendBadgeClasses(trend: StatTrend): string {
+  switch (trend) {
+    case "up":
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100"
+    case "down":
+      return "bg-rose-50 text-rose-700 ring-rose-100"
+    default:
+      return "bg-slate-100 text-slate-600 ring-slate-200"
+  }
+}
 
 export default function Dashboard() {
   const router        = useRouter()
@@ -26,6 +241,9 @@ export default function Dashboard() {
   const initialTab    = searchParams.get('tab') ?? 'overview'
   const [activeTab, setActiveTab] = useState<string>(initialTab)
   const [tabUnsaved, setTabUnsaved] = useState<Record<string, boolean>>({})
+  const [overviewStats, setOverviewStats] = useState<OverviewStat[]>(PLACEHOLDER_STATS)
+  const [statsLoading, setStatsLoading] = useState<boolean>(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
 
   const attemptTabChange = useCallback((nextTab: string) => {
     if (nextTab === activeTab) return
@@ -87,30 +305,54 @@ export default function Dashboard() {
     }
   }, [activeTab, router, searchParams])
 
-  // 3) Stats for overview
-  const stats = [
-    {
-      title: "Gemiddelde gespreksduur",
-      value: "4m 12s",
-      helper: "vs. 3m 50s vorige maand",
-      icon: Clock,
-      color: "text-blue-600",
-    },
-    {
-      title: "Totale beltijd (maand)",
-      value: "28u 14m",
-      helper: "+12% t.o.v. vorige maand",
-      icon: Activity,
-      color: "text-green-600",
-    },
-    {
-      title: "Gesprekken deze maand",
-      value: "1.248",
-      helper: "+5% t.o.v. vorige maand",
-      icon: PhoneCall,
-      color: "text-purple-600",
-    },
-  ]
+  // 3) Load call metrics for overview stats
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadMetrics() {
+      setStatsLoading(true)
+      setStatsError(null)
+      try {
+        const token = localStorage.getItem('jwt')
+        if (!token) {
+          throw new Error('Geen sessietoken gevonden')
+        }
+
+        const response = await fetch(`${BACKEND_URL}/analytics/calls/overview`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Kon belstatistieken niet laden (${response.status})`)
+        }
+
+        const payload = await response.json() as RawCallMetrics
+        const nextStats = buildStatsFromPayload(payload)
+        setOverviewStats(nextStats)
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+        console.error(error)
+        const message = error instanceof Error ? error.message : null
+        if (message === 'Geen sessietoken gevonden') {
+          setStatsError("Log opnieuw in om live belstatistieken te zien. We tonen voorbeelddata.")
+        } else {
+          setStatsError("Live belstatistieken konden niet worden geladen. We tonen voorbeelddata.")
+        }
+        setOverviewStats(DEMO_STATS)
+      } finally {
+        if (!controller.signal.aborted) {
+          setStatsLoading(false)
+        }
+      }
+    }
+
+    loadMetrics()
+
+    return () => controller.abort()
+  }, [])
 
   function handleLogout() {
     // 1) Remove tokens
@@ -159,23 +401,61 @@ export default function Dashboard() {
 
             {/* Overview Panel */}
             <TabsContent value="overview" className="space-y-6">
+              {statsError && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4" />
+                  <span>{statsError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {stats.map((stat, index) => (
-                    <Card
-                        key={index}
-                        className="border border-blue-200/60 bg-gradient-to-br from-blue-50 via-white to-blue-100 shadow-sm"
-                    >
-                      <CardContent className="p-6 flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-sm text-slate-600">{stat.title}</p>
-                          <p className="text-3xl font-semibold text-slate-900">{stat.value}</p>
-                          <p className="text-sm text-slate-500">{stat.helper}</p>
+                {overviewStats.map((stat) => (
+                  <Card
+                    key={stat.id}
+                    className={cn(
+                      "border shadow-sm bg-gradient-to-br",
+                      stat.accent,
+                      "border-slate-200/70"
+                    )}
+                  >
+                    <CardContent className="p-6 flex items-center justify-between gap-4">
+                      <div className="space-y-3">
+                        <p className="text-sm text-slate-600">{stat.title}</p>
+                        <div className="flex items-baseline gap-3">
+                          {statsLoading ? (
+                            <span className="h-8 w-20 rounded bg-slate-200/80 animate-pulse" />
+                          ) : (
+                            <span className="text-3xl font-semibold text-slate-900">{stat.value}</span>
+                          )}
+                          {!statsLoading && (
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
+                                trendBadgeClasses(stat.trend)
+                              )}
+                            >
+                              {stat.trend === "up" && <ArrowUpRight className="mr-1 h-4 w-4" />}
+                              {stat.trend === "down" && <ArrowDownRight className="mr-1 h-4 w-4" />}
+                              {stat.trend === "flat" && <Minus className="mr-1 h-4 w-4" />}
+                              <span>
+                                {stat.trend === "up"
+                                  ? "Groei"
+                                  : stat.trend === "down"
+                                  ? "Daling"
+                                  : "Stabiel"}
+                              </span>
+                            </span>
+                          )}
                         </div>
-                        <div className={`rounded-full bg-white/70 p-3 shadow-inner ${stat.color}`}>
-                          <stat.icon className="h-6 w-6" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                        <p className="text-sm text-slate-500">
+                          {statsLoading ? "Live data wordt geladen..." : stat.helper}
+                        </p>
+                      </div>
+                      <div className="rounded-full bg-white/75 p-3 shadow-inner">
+                        <stat.icon className={cn("h-6 w-6", stat.iconColor)} />
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
 
