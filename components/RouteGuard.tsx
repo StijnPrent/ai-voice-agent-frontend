@@ -19,7 +19,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
     const [authorized, setAuthorized] = useState(false)
 
     // Public routes that don't require authentication
-    const publicPaths = ['/login', '/register', '/forgot-password']
+    const publicPaths = ['/login', '/register', '/forgot-password', '/create-account']
 
     useEffect(() => {
         // Hide page content to stop flash while redirecting

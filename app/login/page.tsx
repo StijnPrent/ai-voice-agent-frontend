@@ -183,8 +183,8 @@ export default function LoginPage() {
                 <div className="text-center">
                     <p className="text-sm text-gray-600">
                         {"Nog geen account? "}
-                        <Link href="/signup" className="text-blue-600 hover:text-blue-500 font-medium">
-                            Registreer hier
+                        <Link href="/create-account" className="text-blue-600 hover:text-blue-500 font-medium">
+                            Vraag toegang aan
                         </Link>
                     </p>
                 </div>
