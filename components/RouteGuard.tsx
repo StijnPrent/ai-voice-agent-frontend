@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { isAuthenticated, removeToken } from '@/utils/auth'
-import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
+import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton"
+import { fetchCompanySetupStatus } from "@/lib/company-setup"
 
 interface RouteGuardProps {
     children: React.ReactNode
@@ -19,33 +20,69 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
     const [authorized, setAuthorized] = useState(false)
 
     // Public routes that don't require authentication
-    const publicPaths = ['/login', '/register', '/forgot-password']
+    const publicPaths = ['/login', '/register', '/forgot-password', '/create-account']
+    const onboardingPaths = ['/onboarding', '/onboarding/company-setup']
 
     useEffect(() => {
+        let cancelled = false
+
         // Hide page content to stop flash while redirecting
         setAuthorized(false)
 
-        const authCheck = () => {
+        const authCheck = async () => {
             // Check if current path is public
             if (publicPaths.includes(pathname)) {
-                setAuthorized(true)
+                if (!cancelled) {
+                    setAuthorized(true)
+                }
                 return
             }
 
             // Check if user is authenticated
-            if (isAuthenticated()) {
-                setAuthorized(true)
-            } else {
+            if (!isAuthenticated()) {
                 // Remove invalid/expired token
                 removeToken()
 
                 // Redirect to login with return url
                 const returnUrl = encodeURIComponent(pathname)
                 router.push(`/login?returnUrl=${returnUrl}`)
+                return
+            }
+
+            try {
+                const setupStatus = await fetchCompanySetupStatus({ bypassCache: true })
+                if (cancelled) {
+                    return
+                }
+
+                const needsSetup = setupStatus.needsSetup
+
+                if (onboardingPaths.includes(pathname)) {
+                    if (needsSetup) {
+                        setAuthorized(true)
+                    } else {
+                        router.replace('/')
+                    }
+                    return
+                }
+
+                if (needsSetup) {
+                    router.replace('/onboarding/company-setup')
+                    return
+                }
+
+                setAuthorized(true)
+            } catch (error) {
+                console.error('Route guard onboarding check failed', error)
+                router.replace('/onboarding/company-setup')
             }
         }
 
-        authCheck()
+        void authCheck()
+
+        return () => {
+            cancelled = true
+        }
     }, [pathname, router])
 
     return authorized ? <>{children}</> : fallback
