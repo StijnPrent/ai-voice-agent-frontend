@@ -115,6 +115,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [isDirty, setIsDirty] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const initialLoadCompleteRef = useRef(false);
   const isSavingRef = useRef(false);
 
@@ -124,6 +125,17 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
       if (initialLoadCompleteRef.current && !isSavingRef.current && next !== prev) {
         setIsDirty(true)
       }
+      return next
+    })
+  }, [])
+
+  const clearValidationError = useCallback((key: string) => {
+    setValidationErrors((prev) => {
+      if (!(key in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[key]
       return next
     })
   }, [])
@@ -194,10 +206,14 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
               const dayKey = dayMap[h.dayOfWeek]
               if (!dayKey) continue
 
+              const existing = prev.operatingDays[dayKey]
+
               updatedDays[dayKey] = {
-                isOpen:    h.isOpen,
-                openTime:  h.openTime  ? h.openTime.slice(0,5)  : prev.operatingDays[dayKey].openTime,
-                closeTime: h.closeTime ? h.closeTime.slice(0,5) : prev.operatingDays[dayKey].closeTime,
+                ...existing,
+                id: typeof h.id === "number" ? h.id : existing.id,
+                isOpen: Boolean(h.isOpen),
+                openTime: h.openTime ? h.openTime.slice(0, 5) : existing.openTime,
+                closeTime: h.closeTime ? h.closeTime.slice(0, 5) : existing.closeTime,
               }
             }
 
@@ -232,12 +248,60 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
     load()
   }, [])
 
+  const validateCompanyData = useCallback((data: CompanyData) => {
+    const errors: Record<string, string> = {}
+
+    if (!data.name.trim()) {
+      errors.companyName = "Vul een bedrijfsnaam in."
+    }
+
+    const trimmedEmail = data.email.trim()
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
+      errors.email = "Vul een geldig e-mailadres in."
+    }
+
+    const digitsOnly = data.phone.replace(/\D/g, "")
+    if (!data.phone.trim() || digitsOnly.length < 8) {
+      errors.phone = "Vul een bereikbaar telefoonnummer in (minimaal 8 cijfers)."
+    }
+
+    if (!data.address.trim()) {
+      errors.address = "Vul het bedrijfsadres in."
+    }
+
+    const openSchedules = Object.values(data.operatingDays).filter((schedule) => schedule.isOpen)
+    if (openSchedules.length === 0) {
+      errors.operatingDays = "Stel ten minste één openingsdag in."
+    } else {
+      for (const schedule of openSchedules) {
+        if (!schedule.openTime || !schedule.closeTime) {
+          errors.operatingDays = "Vul openingstijden en sluitingstijden in voor geopende dagen."
+          break
+        }
+        if (schedule.closeTime <= schedule.openTime) {
+          errors.operatingDays = "De sluitingstijd moet later zijn dan de openingstijd."
+          break
+        }
+      }
+    }
+
+    return errors
+  }, [])
+
   const saveData = useCallback(async () => {
     const token = localStorage.getItem("jwt");
     if (!token) return;
 
     if (!isDirty) {
       return;
+    }
+
+    const errors = validateCompanyData(companyData)
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      setSaveStatus("error")
+      return
     }
 
     isSavingRef.current = true;
@@ -270,6 +334,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         website: companyData.website,
         phone: companyData.phone,
         email: companyData.email,
+        contact_email: companyData.email,
         address: companyData.address,
       });
       const contactsResponse = await fetch(
@@ -361,6 +426,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
       // 5) All done
       setIsDirty(false)
+      setValidationErrors({})
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (err) {
@@ -369,7 +435,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
     } finally {
       isSavingRef.current = false;
     }
-  }, [companyData, customInfo, isDirty]);
+  }, [companyData, customInfo, isDirty, validateCompanyData]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty)
@@ -503,13 +569,19 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                   <Input
                       id="company-name"
                       value={companyData.name}
-                      onChange={(e) => handleCompanyDataChange(prev => {
+                      onChange={(e) => {
                         const value = e.target.value
-                        if (prev.name === value) return prev
-                        return { ...prev, name: value }
-                      })}
-                      className="mt-1"
+                        clearValidationError("companyName")
+                        handleCompanyDataChange(prev => {
+                          if (prev.name === value) return prev
+                          return { ...prev, name: value }
+                        })
+                      }}
+                      className={`mt-1 ${validationErrors.companyName ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                   />
+                  {validationErrors.companyName && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.companyName}</p>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -660,14 +732,20 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                     <Input
                         id="phone"
                         value={companyData.phone}
-                        onChange={(e) => handleCompanyDataChange(prev => {
+                        onChange={(e) => {
                           const value = e.target.value
-                          if (prev.phone === value) return prev
-                          return { ...prev, phone: value }
-                        })}
+                          clearValidationError("phone")
+                          handleCompanyDataChange(prev => {
+                            if (prev.phone === value) return prev
+                            return { ...prev, phone: value }
+                          })
+                        }}
                         placeholder="+1 (555) 123-4567"
-                        className="mt-1"
+                        className={`mt-1 ${validationErrors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
+                    {validationErrors.phone && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -684,14 +762,20 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                     <Input
                         id="email"
                         value={companyData.email}
-                        onChange={(e) => handleCompanyDataChange(prev => {
+                        onChange={(e) => {
                           const value = e.target.value
-                          if (prev.email === value) return prev
-                          return { ...prev, email: value }
-                        })}
+                          clearValidationError("email")
+                          handleCompanyDataChange(prev => {
+                            if (prev.email === value) return prev
+                            return { ...prev, email: value }
+                          })
+                        }}
                         placeholder="contact@company.com"
-                        className="mt-1"
+                        className={`mt-1 ${validationErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
+                    {validationErrors.email && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                    )}
                   </div>
                 </div>
 
@@ -708,15 +792,21 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                     <Textarea
                         id="address"
                         value={companyData.address}
-                        onChange={(e) => handleCompanyDataChange(prev => {
+                        onChange={(e) => {
                           const value = e.target.value
-                          if (prev.address === value) return prev
-                          return { ...prev, address: value }
-                        })}
+                          clearValidationError("address")
+                          handleCompanyDataChange(prev => {
+                            if (prev.address === value) return prev
+                            return { ...prev, address: value }
+                          })
+                        }}
                         rows={2}
                         placeholder="Company address"
-                        className="mt-1"
+                        className={`mt-1 ${validationErrors.address ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
+                    {validationErrors.address && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -740,6 +830,9 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                     content="Geef aan wanneer klanten jullie kunnen bereiken of bezoeken. De AI gebruikt dit om afspraken te plannen."
                   />
                 </div>
+                {validationErrors.operatingDays && (
+                    <p className="mt-2 text-sm text-red-600">{validationErrors.operatingDays}</p>
+                )}
                 <div className="mt-3 space-y-4">
                   {[
                     { day: "Maandag", key: "maandag" as DayKey },
@@ -765,6 +858,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                               variant={companyData.operatingDays[key].isOpen ? "default" : "outline"}
                               size="sm"
                               onClick={() => {
+                                clearValidationError("operatingDays")
                                 handleCompanyDataChange(prev => {
                                   const currentDay = prev.operatingDays[key]
                                   return {
@@ -799,6 +893,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                                     value={companyData.operatingDays[key].openTime}
                                     onChange={(e) => {
                                       const value = e.target.value
+                                      clearValidationError("operatingDays")
                                       handleCompanyDataChange(prev => {
                                         const currentDay = prev.operatingDays[key]
                                         if (currentDay.openTime === value) return prev
@@ -814,7 +909,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                                         }
                                       })
                                     }}
-                                    className="w-32"
+                                    className={`w-32 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                                 />
                               </div>
                               <div className="flex items-center space-x-2">
@@ -831,6 +926,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                                     value={companyData.operatingDays[key].closeTime}
                                     onChange={(e) => {
                                       const value = e.target.value
+                                      clearValidationError("operatingDays")
                                       handleCompanyDataChange(prev => {
                                         const currentDay = prev.operatingDays[key]
                                         if (currentDay.closeTime === value) return prev
@@ -846,7 +942,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                                         }
                                       })
                                     }}
-                                    className="w-32"
+                                    className={`w-32 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                                 />
                               </div>
                             </>
