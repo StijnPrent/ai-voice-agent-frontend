@@ -15,6 +15,7 @@ import {
   RequiredSetupField,
   SetupStatusIssue,
   fetchCompanySetupStatus,
+  ensureVoiceSettingsDefaults,
 } from "@/lib/company-setup"
 
 interface TaskDescriptor {
@@ -105,7 +106,13 @@ export default function CompanySetupOnboardingPage() {
       setIsLoading(false)
 
       if (!next.needsSetup) {
-        router.replace("/")
+        try {
+          await ensureVoiceSettingsDefaults()
+        } finally {
+          if (!cancelled) {
+            router.replace("/")
+          }
+        }
       }
     }
 
@@ -118,11 +125,15 @@ export default function CompanySetupOnboardingPage() {
 
   const handleCheckProgress = useCallback(async () => {
     setIsCheckingProgress(true)
-    const next = await refreshStatus(true)
-    setIsCheckingProgress(false)
+    try {
+      const next = await refreshStatus(true)
 
-    if (!next.needsSetup) {
-      router.replace("/")
+      if (!next.needsSetup) {
+        await ensureVoiceSettingsDefaults()
+        router.replace("/")
+      }
+    } finally {
+      setIsCheckingProgress(false)
     }
   }, [refreshStatus, router])
 

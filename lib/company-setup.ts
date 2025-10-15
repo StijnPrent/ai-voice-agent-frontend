@@ -1,4 +1,7 @@
 import { BACKEND_URL } from "@/lib/api-config"
+import { VoiceId } from "@/enums/VoiceId"
+import { ReplyStyleEnum } from "@/enums/ReplyStyleEnum"
+import { ReplyStyleDescriptionEnum } from "@/enums/ReplyStyleDescriptionEnum"
 
 export type RequiredSetupField =
   | "companyName"
@@ -16,6 +19,17 @@ export interface CompanySetupStatus {
 
 interface FetchOptions {
   bypassCache?: boolean
+}
+
+const DEFAULT_VOICE_SETTINGS = {
+  welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
+  talkingSpeed: 1,
+  voiceId: VoiceId.Koen,
+}
+
+const DEFAULT_REPLY_STYLE = {
+  name: ReplyStyleEnum.Professional,
+  description: ReplyStyleDescriptionEnum.Professional,
 }
 
 function resolveAuthToken(): string | null {
@@ -116,5 +130,82 @@ export async function fetchCompanySetupStatus(options: FetchOptions = {}): Promi
       needsSetup: true,
       missingFields: ["network"],
     }
+  }
+}
+
+export async function ensureVoiceSettingsDefaults(): Promise<void> {
+  const token = resolveAuthToken()
+  if (!token) {
+    return
+  }
+
+  const authHeaders: HeadersInit = {
+    Authorization: `Bearer ${token}`,
+  }
+
+  try {
+    const voiceRes = await fetch(buildUrl("/voice-settings/settings", true), {
+      headers: authHeaders,
+    })
+
+    let requiresVoiceDefaults = false
+    if (!voiceRes.ok) {
+      requiresVoiceDefaults = voiceRes.status === 404
+    }
+
+    const voicePayload = requiresVoiceDefaults
+      ? null
+      : await voiceRes
+          .json()
+          .catch(() => null)
+
+    if (
+      requiresVoiceDefaults ||
+      !voicePayload?.voiceId ||
+      typeof voicePayload.welcomePhrase !== "string" ||
+      voicePayload.welcomePhrase.trim().length === 0 ||
+      typeof voicePayload.talkingSpeed !== "number"
+    ) {
+      await fetch(`${BACKEND_URL}/voice-settings/settings`, {
+        method: "PUT",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(DEFAULT_VOICE_SETTINGS),
+      })
+    }
+
+    const replyRes = await fetch(buildUrl("/voice-settings/reply-style", true), {
+      headers: authHeaders,
+    })
+
+    let requiresReplyDefaults = false
+    if (!replyRes.ok) {
+      requiresReplyDefaults = replyRes.status === 404
+    }
+
+    const replyPayload = requiresReplyDefaults
+      ? null
+      : await replyRes
+          .json()
+          .catch(() => null)
+
+    if (
+      requiresReplyDefaults ||
+      !replyPayload?.name ||
+      typeof replyPayload.name !== "string"
+    ) {
+      await fetch(`${BACKEND_URL}/voice-settings/reply-style`, {
+        method: "PUT",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(DEFAULT_REPLY_STYLE),
+      })
+    }
+  } catch (error) {
+    console.warn("Failed to ensure default voice settings", error)
   }
 }
