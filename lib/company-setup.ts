@@ -167,7 +167,7 @@ export async function ensureVoiceSettingsDefaults(): Promise<void> {
       typeof voicePayload.talkingSpeed !== "number"
     ) {
       await fetch(`${BACKEND_URL}/voice-settings/settings`, {
-        method: "PUT",
+        method: requiresVoiceDefaults ? "POST" : "PUT",
         headers: {
           ...authHeaders,
           "Content-Type": "application/json",
@@ -197,7 +197,7 @@ export async function ensureVoiceSettingsDefaults(): Promise<void> {
       typeof replyPayload.name !== "string"
     ) {
       await fetch(`${BACKEND_URL}/voice-settings/reply-style`, {
-        method: "PUT",
+        method: requiresReplyDefaults ? "POST" : "PUT",
         headers: {
           ...authHeaders,
           "Content-Type": "application/json",
