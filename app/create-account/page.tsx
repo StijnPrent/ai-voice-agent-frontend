@@ -117,7 +117,7 @@ export default function CreateAccountPage() {
         throw new Error(message)
       }
 
-      setSuccess("Account aangemaakt! We leiden je zo door naar de login.")
+      setSuccess("Account aangemaakt! Log in om je bedrijfsprofiel te voltooien.")
       setForm(initialForm)
     } catch (err: any) {
       setSuccess(null)
