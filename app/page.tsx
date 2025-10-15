@@ -89,10 +89,27 @@ export default function Dashboard() {
 
   // 3) Stats for overview
   const stats = [
-    { title:"Active Calls",    value:"24",   change:"+12%",  icon:Phone,   color:"text-green-600" },
-    { title:"Integrations",    value:"8",    change:"+2",    icon:Plug,    color:"text-blue-600"  },
-    { title:"Success Rate",    value:"94.2%",change:"+2.1%", icon:CheckCircle, color:"text-green-600" },
-    { title:"Avg Duration",    value:"3m42s", change:"-15s",  icon:Clock,   color:"text-orange-600" },
+    {
+      title: "Gemiddelde gespreksduur",
+      value: "4m 12s",
+      helper: "vs. 3m 50s vorige maand",
+      icon: Clock,
+      color: "text-blue-600",
+    },
+    {
+      title: "Totale beltijd (maand)",
+      value: "28u 14m",
+      helper: "+12% t.o.v. vorige maand",
+      icon: Activity,
+      color: "text-green-600",
+    },
+    {
+      title: "Gesprekken deze maand",
+      value: "1.248",
+      helper: "+5% t.o.v. vorige maand",
+      icon: PhoneCall,
+      color: "text-purple-600",
+    },
   ]
 
   function handleLogout() {
@@ -142,20 +159,25 @@ export default function Dashboard() {
 
             {/* Overview Panel */}
             <TabsContent value="overview" className="space-y-6">
-              {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">*/}
-              {/*  {stats.map((s,i) => (*/}
-              {/*      <Card key={i}>*/}
-              {/*        <CardContent className="p-6 flex justify-between items-center">*/}
-              {/*          <div>*/}
-              {/*            <p className="text-sm text-gray-600">{s.title}</p>*/}
-              {/*            <p className="text-2xl font-bold">{s.value}</p>*/}
-              {/*            <p className={`text-sm ${s.color}`}>{s.change}</p>*/}
-              {/*          </div>*/}
-              {/*          <s.icon className={`h-8 w-8 ${s.color}`} />*/}
-              {/*        </CardContent>*/}
-              {/*      </Card>*/}
-              {/*  ))}*/}
-              {/*</div>*/}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {stats.map((stat, index) => (
+                    <Card
+                        key={index}
+                        className="border border-blue-200/60 bg-gradient-to-br from-blue-50 via-white to-blue-100 shadow-sm"
+                    >
+                      <CardContent className="p-6 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-slate-600">{stat.title}</p>
+                          <p className="text-3xl font-semibold text-slate-900">{stat.value}</p>
+                          <p className="text-sm text-slate-500">{stat.helper}</p>
+                        </div>
+                        <div className={`rounded-full bg-white/70 p-3 shadow-inner ${stat.color}`}>
+                          <stat.icon className="h-6 w-6" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                ))}
+              </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Activity */}
