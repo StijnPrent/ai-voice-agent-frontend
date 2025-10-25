@@ -21,7 +21,7 @@ interface FetchOptions {
   bypassCache?: boolean
 }
 
-const DEFAULT_VOICE_SETTINGS = {
+export const DEFAULT_VOICE_SETTINGS = {
   welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
   talkingSpeed: 1,
   voiceId: VoiceId.Koen,
