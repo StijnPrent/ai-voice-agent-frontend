@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 
 import { BACKEND_URL } from "@/lib/api-config"
+import { DEFAULT_VOICE_SETTINGS } from "@/lib/company-setup"
 
 interface SignUpForm {
   companyName: string
@@ -92,6 +93,7 @@ export default function CreateAccountPage() {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         accessCode: form.accessCode.trim(),
+        voiceSettings: { ...DEFAULT_VOICE_SETTINGS },
       }
 
       const response = await fetch(`${BACKEND_URL}/company/register`, {
