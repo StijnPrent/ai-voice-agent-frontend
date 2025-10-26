@@ -24,7 +24,7 @@ interface FetchOptions {
 export const DEFAULT_VOICE_SETTINGS = {
   welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
   talkingSpeed: 1,
-  voiceId: VoiceId.Koen,
+  voiceId: VoiceId.Melanie,
 }
 
 const DEFAULT_REPLY_STYLE = {
