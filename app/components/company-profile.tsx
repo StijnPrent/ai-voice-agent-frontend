@@ -233,7 +233,9 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             value:      i.infoValue || i.value || "",
             persistedId: i.id
           }));
-          setCustomInfo(customInfoFields);
+          const nonEmptyFields = customInfoFields.filter((field: CustomInfoField) => field.value.trim() !== "");
+          const placeholderField: CustomInfoField = { id: `placeholder-${Date.now()}`, value: "" };
+          setCustomInfo([...nonEmptyFields, placeholderField]);
         }
       } catch (err) {
         console.error("Load error", err)
@@ -444,7 +446,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const handleCustomInfoChange = (id: string, value: string) => {
     setCustomInfo((prev) => {
       let changed = false
-      const updated = prev.map((field) => {
+      let updated = prev.map((field) => {
         if (field.id === id && field.value !== value) {
           changed = true
           return { ...field, value }
@@ -452,10 +454,33 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         return field
       })
 
-      const lastField = updated[updated.length - 1]
-      if (lastField.value.trim() !== "" && !updated.some((field) => field.value.trim() === "")) {
+      if (!updated.some((field) => field.id === id)) {
         changed = true
-        updated.push({ id: Date.now().toString(), value: "" })
+        updated = [...updated, { id, value }]
+      }
+
+      if (updated.length === 0) {
+        changed = true
+        updated = [{ id: Date.now().toString(), value: "" }]
+      }
+
+      const blankFields = updated.filter((field) => field.value.trim() === "")
+      let placeholder: CustomInfoField
+      if (blankFields.length === 0) {
+        placeholder = { id: Date.now().toString(), value: "" }
+        updated = [...updated, placeholder]
+        changed = true
+      } else {
+        placeholder = blankFields[0]
+        const filtered = updated.filter((field) => field.value.trim() !== "" || field === placeholder)
+        if (filtered.length !== updated.length) {
+          changed = true
+        }
+        updated = filtered
+        if (updated[updated.length - 1] !== placeholder) {
+          updated = [...updated.filter((field) => field !== placeholder), placeholder]
+          changed = true
+        }
       }
 
       if (changed && initialLoadCompleteRef.current && !isSavingRef.current) {
