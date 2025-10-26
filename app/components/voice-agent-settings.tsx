@@ -31,7 +31,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     companyId: 0,
     welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
     talkingSpeed: 1.0,
-    voiceId: VoiceId.Koen,
+    voiceId: VoiceId.Melanie,
     createdAt: new Date(),
     updatedAt: new Date(),
   }

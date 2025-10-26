@@ -461,21 +461,21 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Activity */}
-                <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-300 border border-blue-200 shadow-lg">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="text-slate-900">Recente Activiteiten</CardTitle>
-                    <CardDescription className="text-slate-800/80">Laatste updates</CardDescription>
+                    <CardTitle>Recente Activiteiten</CardTitle>
+                    <CardDescription>Laatste updates</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4 text-slate-900">
+                  <CardContent className="space-y-4">
                     {updates.map((u,i) => (
                         <div key={i} className="flex items-center space-x-3">
                           {u.status === 'created'
-                              ? <CirclePlus className="h-5 w-5 text-green-600" />
-                              : <RefreshCcw className="h-5 w-5 text-blue-600" />
+                              ? <CirclePlus className="h-5 w-5 text-green-300" />
+                              : <RefreshCcw className="h-5 w-5 text-blue-500" />
                           }
                           <div className="flex-1">
-                            <p className="font-medium text-slate-900">{u.update}</p>
-                            <p className="text-xs text-slate-700/80">
+                            <p className="font-medium">{u.update}</p>
+                            <p className="text-xs text-gray-500">
                               {u.createdAt.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}
                             </p>
                           </div>
@@ -485,22 +485,22 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Actions */}
-                <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-300 border border-blue-200 shadow-lg">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="text-slate-900">Snelle acties</CardTitle>
-                    <CardDescription className="text-slate-800/80">Snelkoppelingen</CardDescription>
+                    <CardTitle>Snelle acties</CardTitle>
+                    <CardDescription>Snelkoppelingen</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-slate-900">
+                  <CardContent className="space-y-3">
                     <Button
                         variant="outline"
-                        className="w-full justify-start bg-white/60 hover:bg-white/80 text-blue-700 border-blue-300"
+                        className="w-full justify-start"
                         onClick={() => attemptTabChange("integrations")}
                     >
                       <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
                     </Button>
                     <Button
                         variant="outline"
-                        className="w-full justify-start bg-white/60 hover:bg-white/80 text-blue-700 border-blue-300"
+                        className="w-full justify-start"
                         onClick={() => attemptTabChange("voice-agent")}
                     >
                       <Settings className="mr-2 h-4 w-4"/> Stem instellingen

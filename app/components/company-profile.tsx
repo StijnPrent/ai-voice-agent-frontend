@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Building2, MapPin, Phone, Mail, Globe, X } from "lucide-react"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import {Building2, MapPin, Phone, Mail, Globe, X, Info} from "lucide-react"
+import {TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip"
 import {BACKEND_URL} from "@/lib/api-config";
 import {CompanyProfileSkeleton} from "@/components/skeletons/CompanyProfileSkeleton";
 import {InfoTooltip} from "@/components/info-tooltip";
+import {cn} from "@/lib/utils";
+import {Tooltip} from "recharts";
 
 // Types
 type DayKey =

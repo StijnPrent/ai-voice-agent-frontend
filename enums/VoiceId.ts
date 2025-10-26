@@ -1,5 +1,4 @@
 export enum VoiceId {
-    Koen = 'jfwdd64Nlhnj6vcFqRHZ',
-    Bella = 'XJa38TJgDqYhj5mYbSJA',
-    Eric = 'AVIlLDn2TVmdaDycgbo3'
+    Robert = 'CblS8WYNsiBLGnlV6jjx',
+    Melanie = 'SXBL9NbvTrjsJQYay2kT',
 }

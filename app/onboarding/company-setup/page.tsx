@@ -31,11 +31,6 @@ const TASKS: TaskDescriptor[] = [
     description: "Deze naam verschijnt in rapportages en gesprekken met klanten.",
   },
   {
-    field: "contactEmail",
-    title: "Bevestig je contact e-mailadres",
-    description: "We sturen belangrijke updates naar dit adres.",
-  },
-  {
     field: "phoneNumber",
     title: "Voeg een hoofdtelefoonnummer toe",
     description: "Hiermee kan de voice agent klanten doorverbinden indien nodig.",
@@ -139,7 +134,7 @@ export default function CompanySetupOnboardingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 lg:flex-row">
+      <div className="mx-auto flex w-full flex-col gap-8 px-4 lg:flex-row">
         <div className="flex w-full max-w-xl flex-col gap-6">
           <header className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">

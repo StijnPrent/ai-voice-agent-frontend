@@ -31,7 +31,7 @@ interface CallSummary {
   callSid: string
   fromNumber: string
   startedAt: string | null
-  endedAt: string | null
+  duration: number | null
   vapiCallId?: string | null
 }
 
@@ -169,6 +169,7 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
 
   for (const item of source) {
     if (!item || typeof item !== "object") continue
+    console.log(item.duration)
 
     const callSid =
       isNonEmptyString((item as any).callSid)
@@ -193,12 +194,13 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
           ? (item as any).startTime
           : null
 
-    const endedAt =
-      isNonEmptyString((item as any).endedAt)
-        ? (item as any).endedAt
-        : isNonEmptyString((item as any).endTime)
-          ? (item as any).endTime
-          : null
+    const rawDuration = (item as any).duration
+    const duration =
+        typeof rawDuration === "number" && Number.isFinite(rawDuration)
+            ? Math.round(rawDuration) // 👈 removes decimals
+            : typeof rawDuration === "string" && !Number.isNaN(Number(rawDuration))
+                ? Math.round(Number(rawDuration)) // 👈 also rounds if it's a string
+                : null
 
     const vapiCallId =
       isNonEmptyString((item as any).vapiCallId)
@@ -211,7 +213,7 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
       callSid,
       fromNumber,
       startedAt,
-      endedAt,
+      duration,
       vapiCallId: vapiCallId ?? null,
     })
   }
@@ -444,6 +446,7 @@ export function CallTranscripts() {
         const payload = await getCallsForPhoneNumber(selectedPhoneNumber, 50)
         if (cancelled) return
         const normalisedCalls = normaliseCallSummaries(payload, selectedPhoneNumber)
+        console.log(normalisedCalls)
         setCallSummaries(normalisedCalls)
       } catch (error: any) {
         if (cancelled) return
@@ -574,6 +577,7 @@ export function CallTranscripts() {
             <Button
               size="sm"
               variant="outline"
+              className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
               onClick={loadPhoneNumbers}
               disabled={numbersLoading}
             >
@@ -681,6 +685,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
+                className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
                 onClick={refreshCallHistory}
                 disabled={callsLoading}
               >
@@ -746,7 +751,7 @@ export function CallTranscripts() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock className="h-4 w-4" />
-                            <span>{formatDuration(call.startedAt, call.endedAt)}</span>
+                            <span>{call.duration}</span>
                           </div>
                         </div>
                       </button>
@@ -769,6 +774,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
+                className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
                 onClick={() => loadTranscript(selectedCallSid)}
                 disabled={transcriptLoading}
               >
@@ -843,7 +849,7 @@ export function CallTranscripts() {
 
                     {!transcriptLoading &&
                       transcript?.messages.map((message, index) => {
-                        const isAgent = message.role === "assistant"
+                        const isAgent = message.role === "bot"
                         const isSystem = message.role === "system"
                         const offset = formatOffset(message.startTime)
 
