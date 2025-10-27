@@ -446,7 +446,6 @@ export function CallTranscripts() {
         const payload = await getCallsForPhoneNumber(selectedPhoneNumber, 50)
         if (cancelled) return
         const normalisedCalls = normaliseCallSummaries(payload, selectedPhoneNumber)
-        console.log(normalisedCalls)
         setCallSummaries(normalisedCalls)
       } catch (error: any) {
         if (cancelled) return
@@ -577,7 +576,7 @@ export function CallTranscripts() {
             <Button
               size="sm"
               variant="outline"
-              className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
+              className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
               onClick={loadPhoneNumbers}
               disabled={numbersLoading}
             >
@@ -685,7 +684,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
-                className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
+                className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
                 onClick={refreshCallHistory}
                 disabled={callsLoading}
               >
@@ -774,7 +773,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
-                className='bg-gradient-to-br from-blue-700 to-blue-300 text-white'
+                className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
                 onClick={() => loadTranscript(selectedCallSid)}
                 disabled={transcriptLoading}
               >

@@ -340,7 +340,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                     />
                                 </div>
                                 <div className="mt-4">
-                                    <Button onClick={handleAddAppointmentType}>
+                                    <Button onClick={handleAddAppointmentType} className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70">
                                         <Plus className="h-4 w-4 mr-2" /> Afspraaktype toevoegen
                                     </Button>
                                 </div>
@@ -515,7 +515,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                 </div>
 
                                 <div className="mt-4">
-                                    <Button onClick={handleAddStaffMember}>
+                                    <Button className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70" onClick={handleAddStaffMember}>
                                         <Plus className="h-4 w-4 mr-2" /> Add Staff Member
                                     </Button>
                                 </div>

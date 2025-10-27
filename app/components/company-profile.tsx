@@ -568,6 +568,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             <Button
                 onClick={() => void saveData()}
                 disabled={saveStatus === "saving" || !isDirty}
+                className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70"
             >
               {saveStatus === "saving" ? "Opslaan…" : "Opslaan"}
             </Button>
@@ -740,7 +741,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                           if (prev.website === value) return prev
                           return { ...prev, website: value }
                         })}
-                        placeholder="https://yourcompany.com"
+                        placeholder="https://jouwbedrijf.com"
                         className="mt-1"
                     />
                   </div>
@@ -767,7 +768,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                             return { ...prev, phone: value }
                           })
                         }}
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+31612131415"
                         className={`mt-1 ${validationErrors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
                     {validationErrors.phone && (
@@ -797,7 +798,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                             return { ...prev, email: value }
                           })
                         }}
-                        placeholder="contact@company.com"
+                        placeholder="contact@bedrijf.com"
                         className={`mt-1 ${validationErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
                     {validationErrors.email && (

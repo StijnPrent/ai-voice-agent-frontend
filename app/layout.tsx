@@ -4,9 +4,8 @@ import RouteGuard from "@/components/RouteGuard";
 import {Toaster} from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-    title: 'aivoiceagent',
-    description: 'Created with v0',
-    generator: 'v0.dev',
+    title: 'Callingbird - Dashboard',
+    description: 'Callingbird is jouw AI telefoon assistent die je oproepen en berichten afhandelt.',
 }
 
 export default function RootLayout({
