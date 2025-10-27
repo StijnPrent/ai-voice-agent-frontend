@@ -297,7 +297,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Voice Selection */}
               <Card>
-                <CardHeader>
+                <CardHeader className="text-[#081245]">
                   <CardTitle className="flex items-center gap-2">
                     <Mic className="h-5 w-5" />
                     <span>Stemselectie</span>
@@ -344,7 +344,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
               {/* Voice Parameters */}
               <Card>
-                <CardHeader>
+                <CardHeader className="text-[#081245]">
                   <CardTitle className="flex items-center gap-2">
                     <span>Stemparameters</span>
                     <InfoTooltip
@@ -414,7 +414,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
           <TabsContent value="personality" className="space-y-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="text-[#081245]">
                 <CardTitle className="flex items-center gap-2">
                   <span>AI persoonlijkheid</span>
                   <InfoTooltip

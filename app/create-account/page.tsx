@@ -148,7 +148,7 @@ export default function CreateAccountPage() {
         </div>
 
         <Card className="shadow-lg border-0">
-          <CardHeader className="space-y-1 pb-4">
+          <CardHeader className="space-y-1 pb-4 text-[#081245]">
             <CardTitle className="text-center">Nieuwe organisatie</CardTitle>
             <CardDescription className="text-center">
               We vragen alleen de basisgegevens die nodig zijn voor deze testfase.

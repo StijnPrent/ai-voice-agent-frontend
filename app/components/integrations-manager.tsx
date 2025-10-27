@@ -252,7 +252,7 @@ export function IntegrationsManager() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map(integration => (
                     <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
+                        <CardHeader className="pb-3 text-[#081245]">
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center space-x-3">
                                     <Image

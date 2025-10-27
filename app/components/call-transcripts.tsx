@@ -569,7 +569,7 @@ export function CallTranscripts() {
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <Card className="border-muted">
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 text-[#081245]">
           <CardTitle>Telefoonnummers</CardTitle>
           <CardDescription>Selecteer een beller om gesprekken te bekijken</CardDescription>
           <div className="flex items-center gap-2 pt-2">
@@ -673,7 +673,7 @@ export function CallTranscripts() {
 
       <div className="space-y-6">
         <Card className="border-muted">
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between text-[#081245]">
             <div>
               <CardTitle>Gespreksgeschiedenis</CardTitle>
               <CardDescription>
@@ -762,7 +762,7 @@ export function CallTranscripts() {
         </Card>
 
         <Card className="border-muted">
-          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between text-[#081245]">
             <div>
               <CardTitle>Transcript</CardTitle>
               <CardDescription>

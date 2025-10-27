@@ -440,7 +440,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Activity */}
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="text-[#081245]">
                     <CardTitle>Recente Activiteiten</CardTitle>
                     <CardDescription>Laatste updates</CardDescription>
                   </CardHeader>
@@ -464,7 +464,7 @@ export default function Dashboard() {
 
                 {/* Quick Actions */}
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="text-[#081245]">
                     <CardTitle>Snelle acties</CardTitle>
                     <CardDescription>Snelkoppelingen</CardDescription>
                   </CardHeader>

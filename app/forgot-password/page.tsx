@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
 
                 {/* Forgot Password Form */}
                 <Card className="shadow-lg border-0">
-                    <CardHeader className="space-y-1 pb-4">
+                    <CardHeader className="space-y-1 pb-4 text-[#081245]">
                         <CardTitle className="text-center flex items-center justify-center space-x-2">
                             <Mail className="h-5 w-5" />
                             <span>Forgot Password</span>

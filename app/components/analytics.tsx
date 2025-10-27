@@ -145,7 +145,7 @@ export function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Call Outcomes */}
         <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Call Outcomes</CardTitle>
             <CardDescription>Distribution of call results</CardDescription>
           </CardHeader>
@@ -178,7 +178,7 @@ export function Analytics() {
 
         {/* Top Integrations */}
         <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Top Integrations</CardTitle>
             <CardDescription>Most active integrations by call volume</CardDescription>
           </CardHeader>
@@ -204,7 +204,7 @@ export function Analytics() {
 
       {/* Recent Calls */}
       <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-        <CardHeader>
+        <CardHeader className="text-[#081245]">
           <CardTitle>Recent Calls</CardTitle>
           <CardDescription>Latest call activity and outcomes</CardDescription>
         </CardHeader>
