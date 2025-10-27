@@ -266,7 +266,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     return (
         <div className="min-h-screen bg-gray-50">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900">Appointment Management</h2>
+                <h2 className="text-2xl font-bold text-[#081245]">Appointment Management</h2>
                 <p className="text-gray-600">Configureer alle afspraak soorten die je hebt</p>
             </div>
 
@@ -286,7 +286,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                     {/* ----------------- Appointment Types ----------------- */}
                     <TabsContent value="appointment-types" className="space-y-6">
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="text-[#081245]">
                                 <CardTitle className="flex items-center space-x-2">
                                     <Plus className="h-5 w-5" />
                                     <span>Nieuw afspraaktype toevoegen</span>
@@ -351,7 +351,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                         <div className="space-y-4">
                             {categories.map(category => (
                                 <Card key={category}>
-                                    <CardHeader><CardTitle>{category}</CardTitle></CardHeader>
+                                    <CardHeader className="text-[#081245]"><CardTitle>{category}</CardTitle></CardHeader>
                                     <CardContent>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {appointmentTypes.filter(apt => apt.category === category).map(appointmentType => (
@@ -430,7 +430,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                     <TabsContent value="staff-members" className="space-y-6">
                         {/* Add new staff */}
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="text-[#081245]">
                                 <CardTitle className="flex items-center space-x-2">
                                     <Plus className="h-5 w-5" /> <span>Nieuwe medewerker toevoegen</span>
                                 </CardTitle>
@@ -524,7 +524,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
 
                         {/* Existing staff list */}
                         <Card>
-                            <CardHeader><CardTitle>Team Leden</CardTitle></CardHeader>
+                            <CardHeader className="text-[#081245]"><CardTitle>Team Leden</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                                     {staffMembers.map(s => {
@@ -607,7 +607,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                                             <div className="flex items-start justify-between mb-3">
                                                                 <div className="flex items-center space-x-2">
                                                                     <User className="h-5 w-5 text-blue-600" />
-                                                                    <h3 className="font-medium text-gray-900">{s.name}</h3>
+                                                                    <h3 className="font-medium text-[#081245]">{s.name}</h3>
                                                                 </div>
                                                                 <div className="flex space-x-1">
                                                                     <Button

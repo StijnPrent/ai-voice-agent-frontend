@@ -560,7 +560,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <div className="space-y-6">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
+            <h2 className="text-2xl font-bold text-[#081245]">Bedrijf profiel</h2>
             <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen. Klik op "Opslaan" om je updates te bewaren.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -578,7 +578,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Company Overview */}
           <Card className="lg:col-span-2">
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5" />
                 <span>Bedrijf's informatie</span>
@@ -718,7 +718,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
           {/* Contact Information */}
           <Card>
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle>Contact Informatie</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -844,7 +844,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
         {/* Business Settings */}
         <Card>
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Bedrijf's instellingen</CardTitle>
             <CardDescription>Configureer de openingstijden voor elke dag</CardDescription>
           </CardHeader>
@@ -1011,7 +1011,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
         {/* Custom Company Information */}
         <Card>
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle className="flex items-center gap-2">
               Extra bedrijf's informatie
               <InfoTooltip
@@ -1077,7 +1077,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-blue-900">💡 Tips voor betere prestaties van je AI-assistent:</h3>
+              <h3 className="text-sm font-medium text-[#081245]">💡 Tips voor betere prestaties van je AI-assistent:</h3>
               <ul className="text-xs text-blue-700 space-y-1 ml-4">
                 <li>• Vermeld de unieke waardepropositie van je bedrijf</li>
                 <li>• Noem belangrijke prestaties of mijlpalen</li>
