@@ -315,7 +315,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
                         key={voiceKey}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                           voiceSettings?.voiceId === elevenLabsId
-                            ? "border-blue-500 bg-blue-50"
+                            ? "border-[#0ea5e9] bg-[#0ea5e9]/10"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                         onClick={() => updateVoiceSettings(prev => {
