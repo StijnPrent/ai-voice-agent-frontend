@@ -266,7 +266,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     return (
         <div className="min-h-screen bg-gray-50">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900">Appointment Management</h2>
+                <h2 className="text-2xl font-bold text-[#081245]">Appointment Management</h2>
                 <p className="text-gray-600">Configureer alle afspraak soorten die je hebt</p>
             </div>
 
@@ -607,7 +607,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                                             <div className="flex items-start justify-between mb-3">
                                                                 <div className="flex items-center space-x-2">
                                                                     <User className="h-5 w-5 text-blue-600" />
-                                                                    <h3 className="font-medium text-gray-900">{s.name}</h3>
+                                                                    <h3 className="font-medium text-[#081245]">{s.name}</h3>
                                                                 </div>
                                                                 <div className="flex space-x-1">
                                                                     <Button

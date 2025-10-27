@@ -137,10 +137,10 @@ export default function CreateAccountPage() {
             <div className="bg-blue-600 p-2 rounded-lg">
               <Bird className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">CallingBird</h1>
+            <h1 className="text-2xl font-bold text-[#081245]">CallingBird</h1>
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-gray-900">Maak een testaccount aan</h2>
+            <h2 className="text-xl font-semibold text-[#081245]">Maak een testaccount aan</h2>
             <p className="text-gray-600">
               Gebruik de persoonlijke toegangscode die je van ons hebt ontvangen om een account te activeren.
             </p>

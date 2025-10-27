@@ -43,10 +43,10 @@ export default function ForgotPasswordPage() {
                         <div className="bg-blue-600 p-2 rounded-lg">
                             <Phone className="h-6 w-6 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900">VoiceAgent Pro</h1>
+                        <h1 className="text-2xl font-bold text-[#081245]">VoiceAgent Pro</h1>
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Reset your password</h2>
+                        <h2 className="text-xl font-semibold text-[#081245]">Reset your password</h2>
                         <p className="text-gray-600">Enter your email to receive reset instructions</p>
                     </div>
                 </div>
@@ -122,7 +122,7 @@ export default function ForgotPasswordPage() {
                 <Card className="bg-gray-50 border-gray-200">
                     <CardContent className="pt-4">
                         <div className="text-center space-y-2">
-                            <h3 className="text-sm font-medium text-gray-900">Need help?</h3>
+                            <h3 className="text-sm font-medium text-[#081245]">Need help?</h3>
                             <p className="text-xs text-gray-600">
                                 If you don't receive an email within a few minutes, check your spam folder or{" "}
                                 <Link href="/support" className="text-blue-600 hover:text-blue-500">

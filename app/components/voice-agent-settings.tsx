@@ -262,7 +262,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
+            <h2 className="text-2xl font-bold text-[#081245]">CallingBird instellingen</h2>
             <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
           </div>
           <div className="flex items-center gap-3">

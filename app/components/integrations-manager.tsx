@@ -212,7 +212,7 @@ export function IntegrationsManager() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Integraties</h2>
+                    <h2 className="text-2xl font-bold text-[#081245]">Integraties</h2>
                     <p className="text-gray-600">Verbind je favoriete tools en services</p>
                 </div>
                 {/*<Button>*/}
