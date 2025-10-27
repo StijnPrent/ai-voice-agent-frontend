@@ -560,7 +560,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <div className="space-y-6">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
+            <h2 className="text-2xl font-bold text-[#081245]">Bedrijf profiel</h2>
             <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen. Klik op "Opslaan" om je updates te bewaren.</p>
           </div>
           <div className="flex items-center gap-3">

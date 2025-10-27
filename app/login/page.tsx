@@ -82,10 +82,10 @@ export default function LoginPage() {
                         <div className="bg-blue-600 p-2 rounded-lg">
                             <Bird className="h-6 w-6 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900">CallingBird</h1>
+                        <h1 className="text-2xl font-bold text-[#081245]">CallingBird</h1>
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Welkom terug</h2>
+                        <h2 className="text-xl font-semibold text-[#081245]">Welkom terug</h2>
                         <p className="text-gray-600">Log in om verder te gaan</p>
                     </div>
                 </div>
