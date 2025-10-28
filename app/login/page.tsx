@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import {Phone, Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Bird} from "lucide-react"
 import Link from "next/link"
 import {BACKEND_URL} from "@/lib/api-config";
+import Image from "next/image";
 
 export default function LoginPage() {
     const [formData, setFormData] = useState({
@@ -79,10 +80,7 @@ export default function LoginPage() {
                 {/* Header */}
                 <div className="text-center space-y-4">
                     <div className="flex items-center justify-center space-x-2">
-                        <div className="bg-blue-600 p-2 rounded-lg">
-                            <Bird className="h-6 w-6 text-white" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-[#081245]">CallingBird</h1>
+                        <Image src="/logocallingbird.svg" alt='logo' width={200} height={50}></Image>
                     </div>
                     <div>
                         <h2 className="text-xl font-semibold text-[#081245]">Welkom terug</h2>
@@ -165,7 +163,7 @@ export default function LoginPage() {
                             )}
 
                             {/* Sign In Button */}
-                            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                            <Button type="submit" className="w-full h-11 bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70" disabled={isLoading}>
                                 {isLoading ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -188,23 +186,6 @@ export default function LoginPage() {
                         </Link>
                     </p>
                 </div>
-
-                {/* Demo Credentials */}
-                <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="pt-4">
-                        <div className="text-center space-y-2">
-                            <h3 className="text-sm font-medium text-[#081245]">Demo Credentials</h3>
-                            <div className="text-xs text-blue-700 space-y-1">
-                                <p>
-                                    <strong>Email:</strong> demo@voorbeeld.com
-                                </p>
-                                <p>
-                                    <strong>Wachtwoord:</strong> wachtwoord
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
 
                 {/* Footer */}
                 <div className="text-center text-xs text-gray-500 space-y-2">
