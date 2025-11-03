@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mic, Volume2, Brain, MessageSquare, Play, Pause, Settings } from "lucide-react"
 import {VoiceId} from "@/enums/VoiceId";
-import {BACKEND_URL} from "@/lib/api-config";
+import {BACKEND_URL} from "@/lib/api";
 import {ReplyStyle, VoiceSettings} from "@/lib/types/types";
 import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
 import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";

@@ -15,7 +15,7 @@ import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
 import { VoiceAgentSettings }    from "./components/voice-agent-settings"
 import { CallTranscripts }        from "./components/call-transcripts"
-import { BACKEND_URL } from "@/lib/api-config"
+import { BACKEND_URL } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";

@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/lib/api-config"
+import { BACKEND_URL } from "@/lib/api"
 import { VoiceId } from "@/enums/VoiceId"
 import { ReplyStyleEnum } from "@/enums/ReplyStyleEnum"
 import { ReplyStyleDescriptionEnum } from "@/enums/ReplyStyleDescriptionEnum"

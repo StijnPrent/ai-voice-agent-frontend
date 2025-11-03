@@ -9,12 +9,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import {Building2, MapPin, Phone, Mail, Globe, X, Info} from "lucide-react"
-import {TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip"
-import {BACKEND_URL} from "@/lib/api-config";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip"
+import {BACKEND_URL} from "@/lib/api";
 import {CompanyProfileSkeleton} from "@/components/skeletons/CompanyProfileSkeleton";
 import {InfoTooltip} from "@/components/info-tooltip";
 import {cn} from "@/lib/utils";
-import {Tooltip} from "recharts";
 
 // Types
 type DayKey =
@@ -74,7 +73,7 @@ interface InfoTooltipProps {
   iconClassName?: string
 }
 
-const InfoTooltip = ({ label, content, iconClassName }: InfoTooltipProps) => (
+const InfoTooltipComponent = ({ label, content, iconClassName }: InfoTooltipProps) => (
   <Tooltip>
     <TooltipTrigger asChild>
       <button

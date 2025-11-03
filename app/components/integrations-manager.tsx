@@ -16,7 +16,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import {Plus, Settings, CheckCircle, AlertCircle, Search} from "lucide-react"
-import {BACKEND_URL} from "@/lib/api-config"
+import {BACKEND_URL} from "@/lib/api"
 import {Integration} from "@/lib/types/types";
 import {toast} from "@/hooks/use-toast"
 

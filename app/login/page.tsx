@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import {Phone, Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Bird} from "lucide-react"
 import Link from "next/link"
-import {BACKEND_URL} from "@/lib/api-config";
+import {BACKEND_URL} from "@/lib/api";
 import Image from "next/image";
 
 export default function LoginPage() {
