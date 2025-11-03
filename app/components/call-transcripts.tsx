@@ -31,7 +31,7 @@ interface CallSummary {
   callSid: string
   fromNumber: string
   startedAt: string | null
-  endedAt: string | null
+  duration: number | null
   vapiCallId?: string | null
 }
 
@@ -169,6 +169,7 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
 
   for (const item of source) {
     if (!item || typeof item !== "object") continue
+    console.log(item.duration)
 
     const callSid =
       isNonEmptyString((item as any).callSid)
@@ -193,12 +194,13 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
           ? (item as any).startTime
           : null
 
-    const endedAt =
-      isNonEmptyString((item as any).endedAt)
-        ? (item as any).endedAt
-        : isNonEmptyString((item as any).endTime)
-          ? (item as any).endTime
-          : null
+    const rawDuration = (item as any).duration
+    const duration =
+        typeof rawDuration === "number" && Number.isFinite(rawDuration)
+            ? Math.round(rawDuration) // 👈 removes decimals
+            : typeof rawDuration === "string" && !Number.isNaN(Number(rawDuration))
+                ? Math.round(Number(rawDuration)) // 👈 also rounds if it's a string
+                : null
 
     const vapiCallId =
       isNonEmptyString((item as any).vapiCallId)
@@ -211,7 +213,7 @@ function normaliseCallSummaries(payload: unknown, fallbackNumber: string): CallS
       callSid,
       fromNumber,
       startedAt,
-      endedAt,
+      duration,
       vapiCallId: vapiCallId ?? null,
     })
   }
@@ -567,13 +569,14 @@ export function CallTranscripts() {
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <Card className="border-muted">
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 text-[#081245]">
           <CardTitle>Telefoonnummers</CardTitle>
           <CardDescription>Selecteer een beller om gesprekken te bekijken</CardDescription>
           <div className="flex items-center gap-2 pt-2">
             <Button
               size="sm"
               variant="outline"
+              className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
               onClick={loadPhoneNumbers}
               disabled={numbersLoading}
             >
@@ -670,7 +673,7 @@ export function CallTranscripts() {
 
       <div className="space-y-6">
         <Card className="border-muted">
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between text-[#081245]">
             <div>
               <CardTitle>Gespreksgeschiedenis</CardTitle>
               <CardDescription>
@@ -681,6 +684,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
+                className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
                 onClick={refreshCallHistory}
                 disabled={callsLoading}
               >
@@ -746,7 +750,7 @@ export function CallTranscripts() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock className="h-4 w-4" />
-                            <span>{formatDuration(call.startedAt, call.endedAt)}</span>
+                            <span>{call.duration}</span>
                           </div>
                         </div>
                       </button>
@@ -758,7 +762,7 @@ export function CallTranscripts() {
         </Card>
 
         <Card className="border-muted">
-          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between text-[#081245]">
             <div>
               <CardTitle>Transcript</CardTitle>
               <CardDescription>
@@ -769,6 +773,7 @@ export function CallTranscripts() {
               <Button
                 size="sm"
                 variant="outline"
+                className='bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70'
                 onClick={() => loadTranscript(selectedCallSid)}
                 disabled={transcriptLoading}
               >
@@ -843,7 +848,7 @@ export function CallTranscripts() {
 
                     {!transcriptLoading &&
                       transcript?.messages.map((message, index) => {
-                        const isAgent = message.role === "assistant"
+                        const isAgent = message.role === "bot"
                         const isSystem = message.role === "system"
                         const offset = formatOffset(message.startTime)
 

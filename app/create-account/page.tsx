@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Bird, Eye, EyeOff, Loader2, ShieldCheck, KeyRound, AlertCircle, CheckCircle } from "lucide-react"
@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 
 import { BACKEND_URL } from "@/lib/api-config"
+import { DEFAULT_VOICE_SETTINGS } from "@/lib/company-setup"
+import Image from "next/image";
 
 interface SignUpForm {
   companyName: string
@@ -92,6 +94,7 @@ export default function CreateAccountPage() {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         accessCode: form.accessCode.trim(),
+        voiceSettings: { ...DEFAULT_VOICE_SETTINGS },
       }
 
       const response = await fetch(`${BACKEND_URL}/company/register`, {
@@ -132,13 +135,10 @@ export default function CreateAccountPage() {
       <div className="w-full max-w-2xl space-y-8">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-2">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <Bird className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">CallingBird</h1>
+            <Image src="/logocallingbird.svg" alt='logo' width={200} height={50}></Image>
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-gray-900">Maak een testaccount aan</h2>
+            <h2 className="text-xl font-semibold text-[#081245]">Maak een testaccount aan</h2>
             <p className="text-gray-600">
               Gebruik de persoonlijke toegangscode die je van ons hebt ontvangen om een account te activeren.
             </p>
@@ -146,7 +146,7 @@ export default function CreateAccountPage() {
         </div>
 
         <Card className="shadow-lg border-0">
-          <CardHeader className="space-y-1 pb-4">
+          <CardHeader className="space-y-1 pb-4 text-[#081245]">
             <CardTitle className="text-center">Nieuwe organisatie</CardTitle>
             <CardDescription className="text-center">
               We vragen alleen de basisgegevens die nodig zijn voor deze testfase.
@@ -291,7 +291,7 @@ export default function CreateAccountPage() {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full h-11" disabled={isSubmitting || isSubmitDisabled}>
+              <Button type="submit" className="w-full h-11 bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70" disabled={isSubmitting || isSubmitDisabled}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

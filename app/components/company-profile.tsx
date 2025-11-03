@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Building2, MapPin, Phone, Mail, Globe, X } from "lucide-react"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import {Building2, MapPin, Phone, Mail, Globe, X, Info} from "lucide-react"
+import {TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip"
 import {BACKEND_URL} from "@/lib/api-config";
 import {CompanyProfileSkeleton} from "@/components/skeletons/CompanyProfileSkeleton";
 import {InfoTooltip} from "@/components/info-tooltip";
+import {cn} from "@/lib/utils";
+import {Tooltip} from "recharts";
 
 // Types
 type DayKey =
@@ -233,7 +235,9 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             value:      i.infoValue || i.value || "",
             persistedId: i.id
           }));
-          setCustomInfo(customInfoFields);
+          const nonEmptyFields = customInfoFields.filter((field: CustomInfoField) => field.value.trim() !== "");
+          const placeholderField: CustomInfoField = { id: `placeholder-${Date.now()}`, value: "" };
+          setCustomInfo([...nonEmptyFields, placeholderField]);
         }
       } catch (err) {
         console.error("Load error", err)
@@ -444,7 +448,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const handleCustomInfoChange = (id: string, value: string) => {
     setCustomInfo((prev) => {
       let changed = false
-      const updated = prev.map((field) => {
+      let updated = prev.map((field) => {
         if (field.id === id && field.value !== value) {
           changed = true
           return { ...field, value }
@@ -452,10 +456,33 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         return field
       })
 
-      const lastField = updated[updated.length - 1]
-      if (lastField.value.trim() !== "" && !updated.some((field) => field.value.trim() === "")) {
+      if (!updated.some((field) => field.id === id)) {
         changed = true
-        updated.push({ id: Date.now().toString(), value: "" })
+        updated = [...updated, { id, value }]
+      }
+
+      if (updated.length === 0) {
+        changed = true
+        updated = [{ id: Date.now().toString(), value: "" }]
+      }
+
+      const blankFields = updated.filter((field) => field.value.trim() === "")
+      let placeholder: CustomInfoField
+      if (blankFields.length === 0) {
+        placeholder = { id: Date.now().toString(), value: "" }
+        updated = [...updated, placeholder]
+        changed = true
+      } else {
+        placeholder = blankFields[0]
+        const filtered = updated.filter((field) => field.value.trim() !== "" || field === placeholder)
+        if (filtered.length !== updated.length) {
+          changed = true
+        }
+        updated = filtered
+        if (updated[updated.length - 1] !== placeholder) {
+          updated = [...updated.filter((field) => field !== placeholder), placeholder]
+          changed = true
+        }
       }
 
       if (changed && initialLoadCompleteRef.current && !isSavingRef.current) {
@@ -533,7 +560,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <div className="space-y-6">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bedrijf profiel</h2>
+            <h2 className="text-2xl font-bold text-[#081245]">Bedrijf profiel</h2>
             <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen. Klik op "Opslaan" om je updates te bewaren.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -541,6 +568,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
             <Button
                 onClick={() => void saveData()}
                 disabled={saveStatus === "saving" || !isDirty}
+                className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70"
             >
               {saveStatus === "saving" ? "Opslaan…" : "Opslaan"}
             </Button>
@@ -550,7 +578,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Company Overview */}
           <Card className="lg:col-span-2">
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5" />
                 <span>Bedrijf's informatie</span>
@@ -690,7 +718,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
           {/* Contact Information */}
           <Card>
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle>Contact Informatie</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -713,7 +741,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                           if (prev.website === value) return prev
                           return { ...prev, website: value }
                         })}
-                        placeholder="https://yourcompany.com"
+                        placeholder="https://jouwbedrijf.com"
                         className="mt-1"
                     />
                   </div>
@@ -740,7 +768,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                             return { ...prev, phone: value }
                           })
                         }}
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+31612131415"
                         className={`mt-1 ${validationErrors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
                     {validationErrors.phone && (
@@ -770,7 +798,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                             return { ...prev, email: value }
                           })
                         }}
-                        placeholder="contact@company.com"
+                        placeholder="contact@bedrijf.com"
                         className={`mt-1 ${validationErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     />
                     {validationErrors.email && (
@@ -816,7 +844,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
         {/* Business Settings */}
         <Card>
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Bedrijf's instellingen</CardTitle>
             <CardDescription>Configureer de openingstijden voor elke dag</CardDescription>
           </CardHeader>
@@ -983,7 +1011,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
         {/* Custom Company Information */}
         <Card>
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle className="flex items-center gap-2">
               Extra bedrijf's informatie
               <InfoTooltip
@@ -1049,7 +1077,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-blue-900">💡 Tips voor betere prestaties van je AI-assistent:</h3>
+              <h3 className="text-sm font-medium text-[#081245]">💡 Tips voor betere prestaties van je AI-assistent:</h3>
               <ul className="text-xs text-blue-700 space-y-1 ml-4">
                 <li>• Vermeld de unieke waardepropositie van je bedrijf</li>
                 <li>• Noem belangrijke prestaties of mijlpalen</li>

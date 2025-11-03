@@ -21,10 +21,10 @@ interface FetchOptions {
   bypassCache?: boolean
 }
 
-const DEFAULT_VOICE_SETTINGS = {
+export const DEFAULT_VOICE_SETTINGS = {
   welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
   talkingSpeed: 1,
-  voiceId: VoiceId.Koen,
+  voiceId: VoiceId.Melanie,
 }
 
 const DEFAULT_REPLY_STYLE = {
@@ -148,26 +148,25 @@ export async function ensureVoiceSettingsDefaults(): Promise<void> {
       headers: authHeaders,
     })
 
-    let requiresVoiceDefaults = false
-    if (!voiceRes.ok) {
-      requiresVoiceDefaults = voiceRes.status === 404
-    }
-
-    const voicePayload = requiresVoiceDefaults
-      ? null
-      : await voiceRes
+    const voicePayload = voiceRes.ok
+      ? await voiceRes
           .json()
           .catch(() => null)
+      : null
 
-    if (
-      requiresVoiceDefaults ||
-      !voicePayload?.voiceId ||
-      typeof voicePayload.welcomePhrase !== "string" ||
-      voicePayload.welcomePhrase.trim().length === 0 ||
-      typeof voicePayload.talkingSpeed !== "number"
-    ) {
+    const hasValidVoicePayload =
+      typeof voicePayload?.voiceId === "string" &&
+      typeof voicePayload?.welcomePhrase === "string" &&
+      voicePayload.welcomePhrase.trim().length > 0 &&
+      typeof voicePayload?.talkingSpeed === "number"
+
+    const shouldSeedVoiceDefaults = !hasValidVoicePayload
+    const shouldCreateVoiceDefaults =
+      !voiceRes.ok || !voicePayload || !hasValidVoicePayload
+
+    if (shouldSeedVoiceDefaults) {
       await fetch(`${BACKEND_URL}/voice-settings/settings`, {
-        method: requiresVoiceDefaults ? "POST" : "PUT",
+        method: shouldCreateVoiceDefaults ? "POST" : "PUT",
         headers: {
           ...authHeaders,
           "Content-Type": "application/json",
@@ -180,24 +179,22 @@ export async function ensureVoiceSettingsDefaults(): Promise<void> {
       headers: authHeaders,
     })
 
-    let requiresReplyDefaults = false
-    if (!replyRes.ok) {
-      requiresReplyDefaults = replyRes.status === 404
-    }
-
-    const replyPayload = requiresReplyDefaults
-      ? null
-      : await replyRes
+    const replyPayload = replyRes.ok
+      ? await replyRes
           .json()
           .catch(() => null)
+      : null
 
-    if (
-      requiresReplyDefaults ||
-      !replyPayload?.name ||
-      typeof replyPayload.name !== "string"
-    ) {
+    const hasValidReplyPayload =
+      typeof replyPayload?.name === "string" && replyPayload.name.trim().length > 0
+
+    const shouldSeedReplyDefaults = !hasValidReplyPayload
+    const shouldCreateReplyDefaults =
+      !replyRes.ok || !replyPayload || !hasValidReplyPayload
+
+    if (shouldSeedReplyDefaults) {
       await fetch(`${BACKEND_URL}/voice-settings/reply-style`, {
-        method: requiresReplyDefaults ? "POST" : "PUT",
+        method: shouldCreateReplyDefaults ? "POST" : "PUT",
         headers: {
           ...authHeaders,
           "Content-Type": "application/json",

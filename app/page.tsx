@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
 import Appointments from "@/app/components/appointments";
+import Image from "next/image";
 
 type StatIdentifier = "avgDuration" | "totalDuration" | "callVolume"
 type StatTrend = "up" | "down" | "flat"
@@ -55,21 +56,21 @@ const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
     id: "avgDuration",
     title: "Gemiddelde gespreksduur",
     icon: Clock,
-    accent: "from-blue-50 via-white to-blue-100",
-    iconColor: "text-blue-600",
+    accent: "bg-[#0ea5e9]/10",
+    iconColor: "text-[#0ea5e9]",
   },
   totalDuration: {
     id: "totalDuration",
     title: "Totale beltijd (maand)",
     icon: Activity,
-    accent: "from-emerald-50 via-white to-emerald-100",
+    accent: "bg-emerald-100",
     iconColor: "text-emerald-600",
   },
   callVolume: {
     id: "callVolume",
     title: "Gesprekken deze maand",
     icon: PhoneCall,
-    accent: "from-purple-50 via-white to-purple-100",
+    accent: "bg-purple-100",
     iconColor: "text-purple-600",
   },
 }
@@ -372,10 +373,9 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <header className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 flex justify-between items-center">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <Bird className="h-8 w-8 text-blue-600" />
-              <h1 className="text-2xl font-bold">Calling Bird<sup className="text-s text-gray-400">Demo</sup></h1>
+              <Image src="/logocallingbird.svg" alt='logo' width={200} height={50}></Image>
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -425,33 +425,11 @@ export default function Dashboard() {
                           {statsLoading ? (
                             <span className="h-8 w-20 rounded bg-slate-200/80 animate-pulse" />
                           ) : (
-                            <span className="text-3xl font-semibold text-slate-900">{stat.value}</span>
-                          )}
-                          {!statsLoading && (
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                                trendBadgeClasses(stat.trend)
-                              )}
-                            >
-                              {stat.trend === "up" && <ArrowUpRight className="mr-1 h-4 w-4" />}
-                              {stat.trend === "down" && <ArrowDownRight className="mr-1 h-4 w-4" />}
-                              {stat.trend === "flat" && <Minus className="mr-1 h-4 w-4" />}
-                              <span>
-                                {stat.trend === "up"
-                                  ? "Groei"
-                                  : stat.trend === "down"
-                                  ? "Daling"
-                                  : "Stabiel"}
-                              </span>
-                            </span>
+                            <span className={"text-3xl font-semibold " + stat.iconColor}>{stat.value}</span>
                           )}
                         </div>
-                        <p className="text-sm text-slate-500">
-                          {statsLoading ? "Live data wordt geladen..." : stat.helper}
-                        </p>
                       </div>
-                      <div className="rounded-full bg-white/75 p-3 shadow-inner">
+                      <div className="p-3">
                         <stat.icon className={cn("h-6 w-6", stat.iconColor)} />
                       </div>
                     </CardContent>
@@ -461,21 +439,21 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Activity */}
-                <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-300 border border-blue-200 shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="text-slate-900">Recente Activiteiten</CardTitle>
-                    <CardDescription className="text-slate-800/80">Laatste updates</CardDescription>
+                <Card>
+                  <CardHeader className="text-[#081245]">
+                    <CardTitle>Recente Activiteiten</CardTitle>
+                    <CardDescription>Laatste updates</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4 text-slate-900">
+                  <CardContent className="space-y-4">
                     {updates.map((u,i) => (
                         <div key={i} className="flex items-center space-x-3">
                           {u.status === 'created'
-                              ? <CirclePlus className="h-5 w-5 text-green-600" />
-                              : <RefreshCcw className="h-5 w-5 text-blue-600" />
+                              ? <CirclePlus className="h-5 w-5 text-green-300" />
+                              : <RefreshCcw className="h-5 w-5 text-blue-500" />
                           }
                           <div className="flex-1">
-                            <p className="font-medium text-slate-900">{u.update}</p>
-                            <p className="text-xs text-slate-700/80">
+                            <p className="font-medium">{u.update}</p>
+                            <p className="text-xs text-gray-500">
                               {u.createdAt.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}
                             </p>
                           </div>
@@ -485,22 +463,22 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Actions */}
-                <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-300 border border-blue-200 shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="text-slate-900">Snelle acties</CardTitle>
-                    <CardDescription className="text-slate-800/80">Snelkoppelingen</CardDescription>
+                <Card>
+                  <CardHeader className="text-[#081245]">
+                    <CardTitle>Snelle acties</CardTitle>
+                    <CardDescription>Snelkoppelingen</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-slate-900">
+                  <CardContent className="space-y-3">
                     <Button
                         variant="outline"
-                        className="w-full justify-start bg-white/60 hover:bg-white/80 text-blue-700 border-blue-300"
+                        className="w-full justify-start"
                         onClick={() => attemptTabChange("integrations")}
                     >
                       <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
                     </Button>
                     <Button
                         variant="outline"
-                        className="w-full justify-start bg-white/60 hover:bg-white/80 text-blue-700 border-blue-300"
+                        className="w-full justify-start"
                         onClick={() => attemptTabChange("voice-agent")}
                     >
                       <Settings className="mr-2 h-4 w-4"/> Stem instellingen

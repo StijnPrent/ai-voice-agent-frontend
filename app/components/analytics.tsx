@@ -90,7 +90,7 @@ export function Analytics() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
+          <h2 className="text-2xl font-bold text-[#081245]">Analytics</h2>
           <p className="text-gray-600">Monitor your AI voice agent performance</p>
         </div>
         <div className="flex space-x-2">
@@ -123,7 +123,7 @@ export function Analytics() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{metric.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
+                  <p className="text-2xl font-bold text-[#081245]">{metric.value}</p>
                   <div className="flex items-center space-x-1 mt-1">
                     {metric.trend === "up" ? (
                       <TrendingUp className="h-3 w-3 text-emerald-500" />
@@ -145,7 +145,7 @@ export function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Call Outcomes */}
         <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Call Outcomes</CardTitle>
             <CardDescription>Distribution of call results</CardDescription>
           </CardHeader>
@@ -178,7 +178,7 @@ export function Analytics() {
 
         {/* Top Integrations */}
         <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-          <CardHeader>
+          <CardHeader className="text-[#081245]">
             <CardTitle>Top Integrations</CardTitle>
             <CardDescription>Most active integrations by call volume</CardDescription>
           </CardHeader>
@@ -204,7 +204,7 @@ export function Analytics() {
 
       {/* Recent Calls */}
       <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-200 border-blue-200 text-slate-900">
-        <CardHeader>
+        <CardHeader className="text-[#081245]">
           <CardTitle>Recent Calls</CardTitle>
           <CardDescription>Latest call activity and outcomes</CardDescription>
         </CardHeader>

@@ -31,11 +31,6 @@ const TASKS: TaskDescriptor[] = [
     description: "Deze naam verschijnt in rapportages en gesprekken met klanten.",
   },
   {
-    field: "contactEmail",
-    title: "Bevestig je contact e-mailadres",
-    description: "We sturen belangrijke updates naar dit adres.",
-  },
-  {
     field: "phoneNumber",
     title: "Voeg een hoofdtelefoonnummer toe",
     description: "Hiermee kan de voice agent klanten doorverbinden indien nodig.",
@@ -139,7 +134,7 @@ export default function CompanySetupOnboardingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 lg:flex-row">
+      <div className="mx-auto flex w-full flex-col gap-8 px-4 lg:flex-row">
         <div className="flex w-full max-w-xl flex-col gap-6">
           <header className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
@@ -147,7 +142,7 @@ export default function CompanySetupOnboardingPage() {
               Bedrijf onboarding
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-slate-900">Laten we je account klaarzetten</h1>
+              <h1 className="text-3xl font-bold text-[#081245]">Laten we je account klaarzetten</h1>
               <p className="text-slate-600">
                 Voordat je de CallingBird tools gebruikt, hebben we een paar bedrijfsgegevens nodig. Vul de taken in en sla je wijzigingen op.
               </p>
@@ -155,7 +150,7 @@ export default function CompanySetupOnboardingPage() {
           </header>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle>Checklist</CardTitle>
               <CardDescription>
                 Voltooi alle stappen hieronder en sla de wijzigingen op in het bedrijfsprofiel.
@@ -171,7 +166,7 @@ export default function CompanySetupOnboardingPage() {
                       <Circle className="mt-1 h-5 w-5 text-slate-300" />
                     )}
                     <div>
-                      <p className="font-medium text-slate-900">{task.title}</p>
+                      <p className="font-medium text-[#081245]">{task.title}</p>
                       <p className="text-sm text-slate-600">{task.description}</p>
                     </div>
                   </li>
@@ -232,7 +227,7 @@ export default function CompanySetupOnboardingPage() {
 
         <div className="w-full flex-1">
           <Card className="shadow-sm">
-            <CardHeader>
+            <CardHeader className="text-[#081245]">
               <CardTitle>Bedrijfsprofiel</CardTitle>
               <CardDescription>
                 Vul de velden in en klik op "Opslaan" binnen het profiel zodra je klaar bent. We controleren automatisch of alles is ingevuld.

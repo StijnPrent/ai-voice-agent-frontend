@@ -31,7 +31,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     companyId: 0,
     welcomePhrase: "Goeiedag, hoe kan ik u helpen?",
     talkingSpeed: 1.0,
-    voiceId: VoiceId.Koen,
+    voiceId: VoiceId.Melanie,
     createdAt: new Date(),
     updatedAt: new Date(),
   }
@@ -262,7 +262,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">CallingBird instellingen</h2>
+            <h2 className="text-2xl font-bold text-[#081245]">CallingBird instellingen</h2>
             <p className="text-gray-600">Configureer het gedrag en de eigenschappen van je AI-spraakagent</p>
           </div>
           <div className="flex items-center gap-3">
@@ -297,7 +297,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Voice Selection */}
               <Card>
-                <CardHeader>
+                <CardHeader className="text-[#081245]">
                   <CardTitle className="flex items-center gap-2">
                     <Mic className="h-5 w-5" />
                     <span>Stemselectie</span>
@@ -315,7 +315,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
                         key={voiceKey}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                           voiceSettings?.voiceId === elevenLabsId
-                            ? "border-blue-500 bg-blue-50"
+                            ? "border-[#0ea5e9] bg-[#0ea5e9]/10"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                         onClick={() => updateVoiceSettings(prev => {
@@ -344,7 +344,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
               {/* Voice Parameters */}
               <Card>
-                <CardHeader>
+                <CardHeader className="text-[#081245]">
                   <CardTitle className="flex items-center gap-2">
                     <span>Stemparameters</span>
                     <InfoTooltip
@@ -414,7 +414,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
           <TabsContent value="personality" className="space-y-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="text-[#081245]">
                 <CardTitle className="flex items-center gap-2">
                   <span>AI persoonlijkheid</span>
                   <InfoTooltip
