@@ -1,4 +1,4 @@
-export const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3002";
+import { BACKEND_URL } from "./api";
 
 export function authHeaders() {
     return {
