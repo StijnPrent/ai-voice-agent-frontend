@@ -1,5 +1,5 @@
 // src/lib/schedulingApi.ts
-import { BACKEND_URL } from "./api-config";
+import { BACKEND_URL } from "./api";
 
 type DayKey = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
 const DAY_KEYS: DayKey[] = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
@@ -26,6 +26,8 @@ export interface UIStaffMember {
     role: string;
     specialties: UISpecialty[];
     availability: UIAvailability;
+    googleCalendarId: string | null;
+    googleCalendarSummary: string | null;
     // no isActive on model; compute as: Object.values(availability).some(d => d.isWorking)
 }
 
@@ -68,6 +70,8 @@ type StaffDTO = {
     companyId: string;
     name: string;
     role: string;
+    googleCalendarId?: string | null;
+    googleCalendarSummary?: string | null;
     specialties: { id?: number; name: string }[];
     availability: StaffAvailabilityDTO[];
     createdAt?: string;
@@ -92,6 +96,8 @@ export function staffFromDTO(d: StaffDTO): UIStaffMember {
         role: d.role,
         specialties: (d.specialties ?? []).map(s => ({ id: s.id, name: s.name })),
         availability: avail,
+        googleCalendarId: d.googleCalendarId ?? null,
+        googleCalendarSummary: d.googleCalendarSummary ?? null,
     };
 }
 
@@ -102,6 +108,8 @@ export function staffToDTO(u: Partial<UIStaffMember>): Partial<StaffDTO> {
         role: u.role!,
         specialties: (u.specialties ?? []).map(s => ({ id: typeof s.id === "number" ? s.id : undefined, name: s.name })),
         availability: [],
+        googleCalendarId: u.googleCalendarId ?? null,
+        googleCalendarSummary: u.googleCalendarSummary ?? null,
     };
 
     if (u.availability) {
@@ -200,6 +208,8 @@ export async function addStaffMember(payload: Partial<UIStaffMember>): Promise<U
             role: payload.role,
             specialties: (payload.specialties ?? []).map(s => ({ name: s.name })),
             availability: staffToDTO(payload).availability, // array
+            googleCalendarId: payload.googleCalendarId ?? null,
+            googleCalendarSummary: payload.googleCalendarSummary ?? null,
         }),
     });
     if (!res.ok) throw new Error("Failed to add staff member");
@@ -207,7 +217,7 @@ export async function addStaffMember(payload: Partial<UIStaffMember>): Promise<U
     return staffFromDTO(dto);
 }
 
-export async function updateStaffMember(payload: Partial<UIStaffMember>): Promise<void> {
+export async function updateStaffMember(payload: Partial<UIStaffMember>): Promise<UIStaffMember> {
     const res = await fetch(`${BACKEND_URL}/scheduling/staff-members`, {
         method: "PUT",
         headers: authHeaders(),
@@ -217,9 +227,13 @@ export async function updateStaffMember(payload: Partial<UIStaffMember>): Promis
             role: payload.role,
             specialties: (payload.specialties ?? []).map(s => ({ id: s.id, name: s.name })),
             availability: staffToDTO(payload).availability, // array
+            googleCalendarId: payload.googleCalendarId ?? null,
+            googleCalendarSummary: payload.googleCalendarSummary ?? null,
         }),
     });
     if (!res.ok) throw new Error("Failed to update staff member");
+    const dto: StaffDTO = await res.json();
+    return staffFromDTO(dto);
 }
 
 export async function deleteStaffMember(id: string): Promise<void> {
@@ -228,4 +242,41 @@ export async function deleteStaffMember(id: string): Promise<void> {
         headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete staff member");
+}
+
+/* --------------------------- Google Calendars --------------------------- */
+
+export interface GoogleCalendar {
+    id: string;
+    summary: string | null;
+    displayName?: string | null;
+    summaryOverride?: string | null;
+    description?: string | null;
+    timeZone?: string | null;
+    primary?: boolean;
+    selected?: boolean;
+    accessRole?: string;
+    backgroundColor?: string;
+}
+
+export async function getGoogleCalendars(): Promise<GoogleCalendar[]> {
+    const res = await fetch(`${BACKEND_URL}/google/calendars`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to fetch Google calendars");
+    const body = await res.json();
+    const calendars = Array.isArray(body?.calendars) ? body.calendars : body;
+    if (!Array.isArray(calendars)) {
+        return [];
+    }
+    return calendars.map((c: any) => ({
+        id: String(c.id),
+        summary: typeof c.summary === "string" ? c.summary : null,
+        displayName: typeof c.displayName === "string" ? c.displayName : null,
+        summaryOverride: typeof c.summaryOverride === "string" ? c.summaryOverride : null,
+        description: c.description ?? null,
+        timeZone: c.timeZone ?? null,
+        primary: Boolean(c.primary),
+        selected: Boolean(c.selected),
+        accessRole: c.accessRole,
+        backgroundColor: c.backgroundColor,
+    }));
 }

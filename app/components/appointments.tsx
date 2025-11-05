@@ -9,16 +9,22 @@ import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {CalendarArrowUp, Clock, Euro, Plus, User, Edit, Trash2, Users} from "lucide-react"
 import {Textarea} from "@/components/ui/textarea"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 
 import {
     getAppointmentTypes, addAppointmentType, updateAppointmentType, deleteAppointmentType,
     getStaffMembers, addStaffMember, updateStaffMember, deleteStaffMember,
-    emptyWeek
+    getGoogleCalendars, emptyWeek
 } from "@/lib/schedulingApi"
-import type { UIAppointmentType, UIStaffMember, UISpecialty, UIAvailability } from "@/lib/schedulingApi"
+import type { UIAppointmentType, UIStaffMember, UISpecialty, UIAvailability, GoogleCalendar } from "@/lib/schedulingApi"
 
 type DayKey = keyof UIAvailability;
 const DAY_ORDER: DayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+
+function calendarDisplayLabel(calendar?: Pick<GoogleCalendar, "displayName" | "summary" | "summaryOverride" | "id"> | null) {
+    if (!calendar) return null;
+    return calendar.displayName ?? calendar.summary ?? calendar.summaryOverride ?? calendar.id ?? null;
+}
 
 interface AppointmentsProps {
     onDirtyChange?: (dirty: boolean) => void
@@ -28,6 +34,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     /* ----------------------------- State ----------------------------- */
     const [appointmentTypes, setAppointmentTypes] = useState<UIAppointmentType[]>([])
     const [staffMembers, setStaffMembers] = useState<UIStaffMember[]>([])
+    const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
 
     const [newAppointmentType, setNewAppointmentType] = useState<Partial<UIAppointmentType>>({
         name: "",
@@ -42,11 +49,15 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         role: string
         specialties: string // comma-separated input
         availability: UIAvailability
+        googleCalendarId: string | null
+        googleCalendarSummary: string | null
     }>({
         name: "",
         role: "",
         specialties: "",
         availability: emptyWeek(),
+        googleCalendarId: null,
+        googleCalendarSummary: null,
     })
 
     const [editingAppointment, setEditingAppointment] = useState<string | null>(null)
@@ -57,19 +68,31 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         role: string
         specialties: string // raw string
         availability: UIAvailability
+        googleCalendarId: string | null
+        googleCalendarSummary: string | null
     } | null>(null)
 
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    const hasCalendars = calendars.length > 0
 
     /* ----------------------------- Load ----------------------------- */
     useEffect(() => {
         async function load() {
             try {
                 setLoading(true)
-                const [apt, staff] = await Promise.all([getAppointmentTypes(), getStaffMembers()])
+                const [apt, staff, calendarList] = await Promise.all([
+                    getAppointmentTypes(),
+                    getStaffMembers(),
+                    getGoogleCalendars().catch(err => {
+                        console.warn("Failed to load Google calendars", err)
+                        return []
+                    }),
+                ])
                 setAppointmentTypes(apt)
                 setStaffMembers(staff)
+                setCalendars(calendarList)
             } catch (err: any) {
                 setError(err.message || "Failed to load data")
             } finally {
@@ -144,9 +167,18 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                 role: newStaffMember.role,
                 specialties: parseSpecialtyString(newStaffMember.specialties),
                 availability: newStaffMember.availability,
+                googleCalendarId: newStaffMember.googleCalendarId,
+                googleCalendarSummary: newStaffMember.googleCalendarSummary,
             })
-            setStaffMembers([...staffMembers, created])
-            setNewStaffMember({ name: "", role: "", specialties: "", availability: emptyWeek() })
+            setStaffMembers(prev => [...prev, created])
+            setNewStaffMember({
+                name: "",
+                role: "",
+                specialties: "",
+                availability: emptyWeek(),
+                googleCalendarId: null,
+                googleCalendarSummary: null,
+            })
         } catch (err: any) {
             setError(err.message)
         }
@@ -160,6 +192,8 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
             role: s.role,
             specialties: specialtiesToString(s.specialties),
             availability: JSON.parse(JSON.stringify(s.availability)) as UIAvailability, // deep copy
+            googleCalendarId: s.googleCalendarId,
+            googleCalendarSummary: s.googleCalendarSummary,
         })
     }
 
@@ -176,25 +210,20 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
 
     const handleSaveStaffDraft = async () => {
         if (!staffDraft?.id) return
+        const draftSnapshot = staffDraft
         try {
-            await updateStaffMember({
-                id: staffDraft.id,
-                name: staffDraft.name,
-                role: staffDraft.role,
-                specialties: parseSpecialtyString(staffDraft.specialties),
-                availability: staffDraft.availability,
+            const updated = await updateStaffMember({
+                id: draftSnapshot.id,
+                name: draftSnapshot.name,
+                role: draftSnapshot.role,
+                specialties: parseSpecialtyString(draftSnapshot.specialties),
+                availability: draftSnapshot.availability,
+                googleCalendarId: draftSnapshot.googleCalendarId,
+                googleCalendarSummary: draftSnapshot.googleCalendarSummary,
             })
             // reflect in UI
-            setStaffMembers(staffMembers.map(s =>
-                s.id === staffDraft.id
-                    ? {
-                        ...s,
-                        name: staffDraft.name,
-                        role: staffDraft.role,
-                        specialties: parseSpecialtyString(staffDraft.specialties),
-                        availability: staffDraft.availability,
-                    }
-                    : s
+            setStaffMembers(prev => prev.map(s =>
+                s.id === draftSnapshot.id ? updated : s
             ))
             setEditingStaff(null)
             setStaffDraft(null)
@@ -206,7 +235,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     const handleDeleteStaffMember = async (id: string) => {
         try {
             await deleteStaffMember(id)
-            setStaffMembers(staffMembers.filter(s => s.id !== id))
+            setStaffMembers(prev => prev.filter(s => s.id !== id))
         } catch (err: any) {
             setError(err.message)
         }
@@ -236,7 +265,8 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const roleChanged = newStaffMember.role.trim() !== ""
         const specialtiesChanged = newStaffMember.specialties.trim() !== ""
         const availabilityChanged = !availabilityIsDefault(newStaffMember.availability)
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged
+        const calendarChanged = newStaffMember.googleCalendarId !== null
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
     }, [newStaffMember])
 
     const staffDraftChanged = useMemo(() => {
@@ -251,7 +281,10 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const roleChanged = staffDraft.role !== original.role
         const specialtiesChanged = staffDraft.specialties !== specialtiesToString(original.specialties)
         const availabilityChanged = !availabilityEquals(staffDraft.availability, original.availability)
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged
+        const calendarChanged =
+            (staffDraft.googleCalendarId ?? null) !== (original.googleCalendarId ?? null) ||
+            (staffDraft.googleCalendarSummary ?? null) !== (original.googleCalendarSummary ?? null)
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
     }, [staffDraft, staffMembers])
 
     const hasUnsavedChanges = hasNewAppointmentTypeChanges || hasNewStaffChanges || staffDraftChanged
@@ -459,6 +492,42 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                             onChange={e => setNewStaffMember({ ...newStaffMember, specialties: e.target.value })}
                                         />
                                     </div>
+                                    {hasCalendars && (
+                                        <div>
+                                            <Label>Google Calendar</Label>
+                                            <Select
+                                                value={newStaffMember.googleCalendarId ?? "__none__"}
+                                                onValueChange={value => {
+                                                    if (value === "__none__") {
+                                                        setNewStaffMember(prev => ({
+                                                            ...prev,
+                                                            googleCalendarId: null,
+                                                            googleCalendarSummary: null,
+                                                        }))
+                                                        return
+                                                    }
+                                                    const selected = calendars.find(c => c.id === value)
+                                                    setNewStaffMember(prev => ({
+                                                        ...prev,
+                                                        googleCalendarId: selected?.id ?? null,
+                                                        googleCalendarSummary: calendarDisplayLabel(selected) ?? selected?.id ?? null,
+                                                    }))
+                                                }}
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Koppel een kalender" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="__none__">Geen koppeling</SelectItem>
+                                                    {calendars.map(calendar => (
+                                                        <SelectItem key={calendar.id} value={calendar.id}>
+                                                            {calendarDisplayLabel(calendar) ?? calendar.id}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
 
                                     {/* Weekly Availability Editor */}
                                     <div className="md:col-span-2">
@@ -529,6 +598,12 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                                     {staffMembers.map(s => {
                                         const active = isActiveFromAvailability(s.availability);
+                                        const linkedCalendar = calendars.find(c => c.id === s.googleCalendarId);
+                                        const calendarLabel =
+                                            calendarDisplayLabel(linkedCalendar) ??
+                                            s.googleCalendarSummary ??
+                                            s.googleCalendarId ??
+                                            "Geen koppeling";
                                         return (
                                             <Card key={s.id} className="border-2 hover:border-blue-200">
                                                 <CardContent className="p-4">
@@ -546,6 +621,44 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                                                 value={staffDraft.specialties}
                                                                 onChange={e => setStaffDraft({ ...staffDraft, specialties: e.target.value })}
                                                             />
+                                                            {hasCalendars && (
+                                                                <div>
+                                                                    <Label className="text-sm font-medium">Google Calendar</Label>
+                                                                    <Select
+                                                                        value={staffDraft.googleCalendarId ?? "__none__"}
+                                                                        onValueChange={value => {
+                                                                            setStaffDraft(prev => {
+                                                                                if (!prev) return prev
+                                                                                if (value === "__none__") {
+                                                                                    return {
+                                                                                        ...prev,
+                                                                                        googleCalendarId: null,
+                                                                                        googleCalendarSummary: null,
+                                                                                    }
+                                                                                }
+                                                                                const selected = calendars.find(c => c.id === value)
+                                                                                return {
+                                                                                    ...prev,
+                                                                                    googleCalendarId: selected?.id ?? null,
+                                                                                    googleCalendarSummary: calendarDisplayLabel(selected) ?? selected?.id ?? null,
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    >
+                                                                        <SelectTrigger className="w-full">
+                                                                            <SelectValue placeholder="Koppel een kalender" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="__none__">Geen koppeling</SelectItem>
+                                                                            {calendars.map(calendar => (
+                                                                                <SelectItem key={calendar.id} value={calendar.id}>
+                                                                                    {calendarDisplayLabel(calendar) ?? calendar.id}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            )}
 
                                                             {/* Edit weekly availability */}
                                                             <div>
@@ -639,6 +752,11 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                                                                         ))}
                                                                     </div>
                                                                 )}
+
+                                                                <div className="text-xs text-gray-600">
+                                                                    <span className="font-semibold text-gray-700 mr-1">Google Calendar:</span>
+                                                                    {calendarLabel}
+                                                                </div>
 
                                                                 {/* Availability Display */}
                                                                 <div className="bg-gray-50 p-3 rounded-lg">
