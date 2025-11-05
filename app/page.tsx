@@ -15,7 +15,9 @@ import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
 import { VoiceAgentSettings }    from "./components/voice-agent-settings"
 import { CallTranscripts }        from "./components/call-transcripts"
-import { BACKEND_URL } from "@/lib/api-config"
+import { BACKEND_URL } from "@/lib/api"
+import { Switch } from "@/components/ui/switch"
+import { getVoiceAssistantState, setVoiceAssistantState } from "@/lib/api-config"
 import { cn } from "@/lib/utils"
 import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
@@ -51,7 +53,7 @@ interface RawCallMetrics {
 
 const STAT_ORDER: StatIdentifier[] = ["avgDuration", "totalDuration", "callVolume"]
 
-const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
+  const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
   avgDuration: {
     id: "avgDuration",
     title: "Gemiddelde gespreksduur",
@@ -274,6 +276,52 @@ export default function Dashboard() {
   const [loadingUpdates, setLoadingUpdates] = useState<boolean>(true)
   const [error, setError]           = useState<string | null>(null)
 
+  // Voice assistant toggle state
+  const [assistantEnabled, setAssistantEnabled] = useState<boolean>(false)
+  const [assistantSaving, setAssistantSaving]   = useState<boolean>(false)
+
+  function getCompanyIdFromJWT(): string | null {
+    const token = localStorage.getItem("jwt")
+    if (!token) return null
+    try {
+      const [, payload] = token.split(".")
+      const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+      return json.companyId ?? json.cid ?? json.company_id ?? null
+    } catch {
+      return null
+    }
+  }
+
+  useEffect(() => {
+    // Load initial voice assistant state
+    (async () => {
+      try {
+        const companyId = getCompanyIdFromJWT()
+        if (!companyId) return
+        const state = await getVoiceAssistantState({ companyId })
+        setAssistantEnabled(!!state.enabled)
+      } catch (e) {
+        // Soft-fail: leave toggle off if unknown
+        console.warn("Failed to load voice assistant state", e)
+      }
+    })()
+  }, [])
+
+  async function handleAssistantToggle(checked: boolean) {
+    try {
+      setAssistantSaving(true)
+      const companyId = getCompanyIdFromJWT()
+      const res = await setVoiceAssistantState({ enabled: checked, companyId: companyId ?? undefined })
+      setAssistantEnabled(!!res.enabled)
+    } catch (e) {
+      console.error("Failed to update voice assistant state", e)
+      // revert UI on error
+      setAssistantEnabled((prev) => prev)
+    } finally {
+      setAssistantSaving(false)
+    }
+  }
+
   // 1) Fetch updates on mount
   useEffect(() => {
     async function loadUpdates() {
@@ -381,6 +429,15 @@ export default function Dashboard() {
               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                 <Activity className="h-3 w-3 mr-1" /> Systeem Online
               </Badge>
+              {/* Voice Assistant Toggle */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">AI Assitent</span>
+                <Switch
+                  checked={assistantEnabled}
+                  disabled={assistantSaving}
+                  onCheckedChange={(checked) => handleAssistantToggle(checked)}
+                />
+              </div>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <User className="h-4 w-4 mr-2" /> Log uit
               </Button>

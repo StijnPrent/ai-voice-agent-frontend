@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 
-import { BACKEND_URL } from "@/lib/api-config"
+import { BACKEND_URL } from "@/lib/api"
 import { DEFAULT_VOICE_SETTINGS } from "@/lib/company-setup"
 import Image from "next/image";
 

@@ -7,6 +7,37 @@ export function authHeaders() {
     };
 }
 
+/* --------------------------- Voice Assistant --------------------------- */
+export interface VoiceAssistantState {
+    companyId: string;
+    twilioNumber: string | null;
+    enabled: boolean;
+}
+
+export interface VoiceAssistantStateResponse extends VoiceAssistantState {
+    success: true;
+}
+
+export async function getVoiceAssistantState(params: { companyId?: string | number; twilioNumber?: string }) {
+    const url = new URL(`${BACKEND_URL}/voice/assistant/state`);
+    if (params.companyId != null) url.searchParams.set("companyId", String(params.companyId));
+    if (params.twilioNumber) url.searchParams.set("twilioNumber", params.twilioNumber);
+
+    const res = await fetch(url.toString(), { headers: authHeaders() });
+    if (!res.ok) throw new Error(`Failed to fetch voice assistant state (status ${res.status})`);
+    return res.json() as Promise<VoiceAssistantState>;
+}
+
+export async function setVoiceAssistantState(body: { enabled: boolean; companyId?: string | number; twilioNumber?: string }) {
+    const res = await fetch(`${BACKEND_URL}/voice/assistant/state`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to update voice assistant state (status ${res.status})`);
+    return res.json() as Promise<VoiceAssistantStateResponse>;
+}
+
 /* -------------------------------- Call Logs -------------------------------- */
 export async function getCallPhoneNumbers(limit = 50) {
     const url = new URL(`${BACKEND_URL}/calls/phone-numbers`);
@@ -122,6 +153,7 @@ export async function updateStaffMember(payload: any) {
         body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to update staff member");
+    return res.json();
 }
 
 export async function deleteStaffMember(id: string) {
@@ -130,4 +162,13 @@ export async function deleteStaffMember(id: string) {
         headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete staff member");
+}
+
+/* --------------------------------- Google Calendars --------------------------------- */
+export async function getGoogleCalendars() {
+    const res = await fetch(`${BACKEND_URL}/google/calendars`, {
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch Google calendars");
+    return res.json();
 }

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mic, Volume2, Brain, MessageSquare, Play, Pause, Settings } from "lucide-react"
 import {VoiceId} from "@/enums/VoiceId";
-import {BACKEND_URL} from "@/lib/api-config";
+import {BACKEND_URL} from "@/lib/api";
 import {ReplyStyle, VoiceSettings} from "@/lib/types/types";
 import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
 import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";
@@ -92,12 +92,14 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     description: replyStyleDescriptions[id],
   }))
   const [playingVoiceKey, setPlayingVoiceKey] = useState<string | null>(null);
+  const playingVoiceKeyRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
       audioRef.current = null;
+      playingVoiceKeyRef.current = null;
     };
   }, []);
 
@@ -116,18 +118,35 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     }
 
     // Start a new voice
-    audioRef.current?.pause();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current.load();
+    }
     const audio = new Audio(src);
     audioRef.current = audio;
     setPlayingVoiceKey(voiceKey);
+    playingVoiceKeyRef.current = voiceKey;
 
-    audio.addEventListener("ended", () => setPlayingVoiceKey(null));
-    audio.addEventListener("pause", () => {
-      if (playingVoiceKey === voiceKey) setPlayingVoiceKey(null);
-    });
+    const handleEnded = () => {
+      // Reset icon when audio finishes
+      playingVoiceKeyRef.current = null;
+      setPlayingVoiceKey(null);
+    };
+    const handlePause = () => {
+      // If the current preview is paused, revert the icon
+      if (playingVoiceKeyRef.current === voiceKey) {
+        playingVoiceKeyRef.current = null;
+        setPlayingVoiceKey(null);
+      }
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("pause", handlePause);
 
     audio.play().catch(err => {
       console.error("Preview play failed:", err);
+      playingVoiceKeyRef.current = null;
       setPlayingVoiceKey(null);
     });
   }
