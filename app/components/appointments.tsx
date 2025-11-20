@@ -1,22 +1,43 @@
 "use client"
 
-import {useEffect, useMemo, useState} from "react"
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
-import {Button} from "@/components/ui/button"
-import {Input} from "@/components/ui/input"
-import {Label} from "@/components/ui/label"
-import {Badge} from "@/components/ui/badge"
+import {useCallback, useEffect, useMemo, useRef, useState} from "react"
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
-import {CalendarArrowUp, Clock, Euro, Plus, User, Edit, Trash2, Users} from "lucide-react"
-import {Textarea} from "@/components/ui/textarea"
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {CalendarArrowUp, Users} from "lucide-react"
+import AppointmentTypesTab from "@/components/AppointmentTypesTab"
+import StaffMembersTab from "@/components/StaffMembersTab"
+import { useToast } from "@/hooks/use-toast"
 
 import {
-    getAppointmentTypes, addAppointmentType, updateAppointmentType, deleteAppointmentType,
-    getStaffMembers, addStaffMember, updateStaffMember, deleteStaffMember,
-    getGoogleCalendars, emptyWeek
+    getAppointmentTypes,
+    addAppointmentType,
+    updateAppointmentType,
+    deleteAppointmentType,
+    getStaffMembers,
+    addStaffMember,
+    updateStaffMember,
+    deleteStaffMember,
+    getGoogleCalendars,
+    getAppointmentCategories,
+    emptyWeek,
 } from "@/lib/schedulingApi"
-import type { UIAppointmentType, UIStaffMember, UISpecialty, UIAvailability, GoogleCalendar } from "@/lib/schedulingApi"
+import {
+    fetchPhorestStaff,
+    linkPhorestStaffMember,
+    type PhorestStaffMember,
+} from "@/lib/api-config"
+import type { AppointmentPreset } from "@/app/types/appointments"
+import type { NewStaffMemberForm, StaffDraft } from "@/app/types/staff"
+import type {
+    AppointmentCategory,
+    AppointmentTypeForm,
+    UIAppointmentType,
+    UIStaffMember,
+    UISpecialty,
+    UIAvailability,
+    GoogleCalendar,
+    UITimeBlock,
+} from "@/lib/schedulingApi"
 
 type DayKey = keyof UIAvailability;
 const DAY_ORDER: DayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
@@ -33,66 +54,96 @@ interface AppointmentsProps {
 export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     /* ----------------------------- State ----------------------------- */
     const [appointmentTypes, setAppointmentTypes] = useState<UIAppointmentType[]>([])
+    const [appointmentCategories, setAppointmentCategories] = useState<AppointmentCategory[]>([])
     const [staffMembers, setStaffMembers] = useState<UIStaffMember[]>([])
     const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
+    const [phorestStaff, setPhorestStaff] = useState<PhorestStaffMember[]>([])
+    const [phorestConnected, setPhorestConnected] = useState(false)
+    const [phorestLoading, setPhorestLoading] = useState(false)
+    const [phorestError, setPhorestError] = useState<string | null>(null)
+    const [phorestLinkingStaffId, setPhorestLinkingStaffId] = useState<string | null>(null)
 
-    const [newAppointmentType, setNewAppointmentType] = useState<Partial<UIAppointmentType>>({
+    const [newAppointmentType, setNewAppointmentType] = useState<AppointmentTypeForm>({
         name: "",
         duration: 30,
         price: undefined,
         description: "",
-        category: "",
+        categoryId: null,
     })
+    const [presetOptions, setPresetOptions] = useState<AppointmentPreset[]>([])
+    const [presetsLoading, setPresetsLoading] = useState(true)
+    const [presetsError, setPresetsError] = useState<string | null>(null)
+    const [isPresetDialogOpen, setPresetDialogOpen] = useState(false)
+    const [pendingPreset, setPendingPreset] = useState<AppointmentPreset | null>(null)
+    const [pendingDuration, setPendingDuration] = useState<number>(30)
+    const [pendingPrice, setPendingPrice] = useState<string>("")
+    const [lastAppliedPreset, setLastAppliedPreset] = useState<AppointmentPreset | null>(null)
+    const [prefillFlashFields, setPrefillFlashFields] = useState<string[]>([])
+    const [deleteTarget, setDeleteTarget] = useState<UIAppointmentType | null>(null)
+    const [creatingAppointment, setCreatingAppointment] = useState(false)
+    const [deletingAppointment, setDeletingAppointment] = useState(false)
+    const { toast } = useToast()
 
-    const [newStaffMember, setNewStaffMember] = useState<{
-        name: string
-        role: string
-        specialties: string // comma-separated input
-        availability: UIAvailability
-        googleCalendarId: string | null
-        googleCalendarSummary: string | null
-    }>({
+    const [newStaffMember, setNewStaffMember] = useState<NewStaffMemberForm>({
         name: "",
         role: "",
         specialties: "",
         availability: emptyWeek(),
         googleCalendarId: null,
         googleCalendarSummary: null,
+        phorestStaffId: null,
     })
+    const [creatingStaff, setCreatingStaff] = useState(false)
+    const [staffFieldTouched, setStaffFieldTouched] = useState<{ name: boolean; role: boolean }>({ name: false, role: false })
+    const lastSavedAvailabilityRef = useRef<UIAvailability | null>(null)
 
     const [editingAppointment, setEditingAppointment] = useState<string | null>(null)
     const [editingStaff, setEditingStaff] = useState<string | null>(null)
-    const [staffDraft, setStaffDraft] = useState<{
-        id?: string
-        name: string
-        role: string
-        specialties: string // raw string
-        availability: UIAvailability
-        googleCalendarId: string | null
-        googleCalendarSummary: string | null
-    } | null>(null)
+    const [staffDraft, setStaffDraft] = useState<StaffDraft | null>(null)
 
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     const hasCalendars = calendars.length > 0
 
+    const refreshPhorestStaff = useCallback(async () => {
+        setPhorestLoading(true)
+        try {
+            const { connected, staff } = await fetchPhorestStaff()
+            setPhorestConnected(connected)
+            setPhorestStaff(staff)
+        } catch (err: any) {
+            console.warn("Failed to load Phorest staff", err)
+            setPhorestConnected(false)
+            setPhorestStaff([])
+            setPhorestError(err?.message ?? "Phorest laden mislukt")
+        } finally {
+            setPhorestLoading(false)
+        }
+    }, [])
+
     /* ----------------------------- Load ----------------------------- */
     useEffect(() => {
         async function load() {
             try {
                 setLoading(true)
-                const [apt, staff, calendarList] = await Promise.all([
+                const [apt, staff, calendarList, categoryList] = await Promise.all([
                     getAppointmentTypes(),
                     getStaffMembers(),
                     getGoogleCalendars().catch(err => {
                         console.warn("Failed to load Google calendars", err)
                         return []
                     }),
+                    getAppointmentCategories().catch(err => {
+                        console.warn("Failed to load appointment categories", err)
+                        return []
+                    }),
                 ])
                 setAppointmentTypes(apt)
                 setStaffMembers(staff)
                 setCalendars(calendarList)
+                setAppointmentCategories(categoryList)
+                await refreshPhorestStaff()
             } catch (err: any) {
                 setError(err.message || "Failed to load data")
             } finally {
@@ -100,48 +151,160 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
             }
         }
         load()
+    }, [refreshPhorestStaff])
+
+    useEffect(() => {
+        let active = true
+        async function loadPresets() {
+            try {
+                setPresetsLoading(true)
+                setPresetsError(null)
+                const res = await fetch("/appointment-presets.json", { cache: "force-cache" })
+                if (!res.ok) throw new Error("Failed to load presets")
+                const data: AppointmentPreset[] = await res.json()
+                if (!active) return
+                setPresetOptions(data)
+            } catch (err) {
+                if (!active) return
+                console.error("Preset fetch failed", err)
+                setPresetsError("Kon presets niet laden")
+            } finally {
+                if (active) setPresetsLoading(false)
+            }
+        }
+        loadPresets()
+        return () => {
+            active = false
+        }
     }, [])
+
+    useEffect(() => {
+        if (!isPresetDialogOpen) {
+            setPendingPreset(null)
+            setPendingDuration(30)
+            setPendingPrice("")
+        }
+    }, [isPresetDialogOpen])
+
+    useEffect(() => {
+        if (!prefillFlashFields.length) return
+        const timer = setTimeout(() => setPrefillFlashFields([]), 1600)
+        return () => clearTimeout(timer)
+    }, [prefillFlashFields])
 
     /* ----------------------- Appointment Types ----------------------- */
     const handleAddAppointmentType = async () => {
         if (!newAppointmentType.name || !newAppointmentType.duration) return
         try {
+            setCreatingAppointment(true)
             const created = await addAppointmentType(newAppointmentType)
             setAppointmentTypes([...appointmentTypes, created])
-            setNewAppointmentType({ name: "", duration: 30, price: undefined, description: "", category: "" })
+            setNewAppointmentType({ name: "", duration: 30, price: undefined, description: "", categoryId: null })
+            setLastAppliedPreset(null)
+            toast({
+                title: "Afspraaktype toegevoegd",
+                description: `${created.name} is opgeslagen.`,
+            })
         } catch (err: any) {
-            setError(err.message)
+            const message = err?.message ?? "Opslaan mislukt"
+            setError(message)
+            toast({
+                title: "Opslaan mislukt",
+                description: message,
+                variant: "destructive",
+            })
+        } finally {
+            setCreatingAppointment(false)
         }
     }
 
-    const handleUpdateAppointmentType = async (id: string, updates: Partial<UIAppointmentType>) => {
+    const handleUpdateAppointmentType = async (id: string, updates: AppointmentTypeForm) => {
         try {
-            await updateAppointmentType({ id, ...updates })
-            setAppointmentTypes(appointmentTypes.map(apt => apt.id === id ? {...apt, ...updates} : apt))
+            const updated = await updateAppointmentType({ id, ...updates })
+            setAppointmentTypes(appointmentTypes.map(apt => apt.id === id ? updated : apt))
             setEditingAppointment(null)
         } catch (err: any) {
             setError(err.message)
         }
     }
 
-    const handleDeleteAppointmentType = async (id: string) => {
+    const handleDeleteAppointmentType = async () => {
+        if (!deleteTarget) return
         try {
-            await deleteAppointmentType(id)
-            setAppointmentTypes(appointmentTypes.filter(apt => apt.id !== id))
+            setDeletingAppointment(true)
+            await deleteAppointmentType(deleteTarget.id)
+            setAppointmentTypes(appointmentTypes.filter(apt => apt.id !== deleteTarget.id))
+            toast({
+                title: "Afspraaktype verwijderd",
+                description: `${deleteTarget.name} is verwijderd.`,
+            })
         } catch (err: any) {
-            setError(err.message)
+            const message = err?.message ?? "Verwijderen mislukt"
+            setError(message)
+            toast({
+                title: "Verwijderen mislukt",
+                description: message,
+                variant: "destructive",
+            })
+        } finally {
+            setDeletingAppointment(false)
+            setDeleteTarget(null)
+        }
+    }
+
+    const syncPhorestLink = async (
+        staffId: string,
+        nextPhorestStaffId: string | null,
+        previousPhorestStaffId: string | null
+    ) => {
+        if (!phorestConnected) return
+        if ((previousPhorestStaffId ?? null) === (nextPhorestStaffId ?? null)) return
+        try {
+            setPhorestLinkingStaffId(staffId)
+            await linkPhorestStaffMember(staffId, nextPhorestStaffId)
+        } catch (err: any) {
+            const message = err?.message ?? "Phorest koppeling bijwerken mislukt"
+            toast({
+                title: "Phorest koppeling",
+                description: message,
+                variant: "destructive",
+            })
+        } finally {
+            setPhorestLinkingStaffId(current => (current === staffId ? null : current))
         }
     }
 
     /* ----------------------------- Staff ---------------------------- */
+    const defaultTimeBlock = () => ({ startTime: "09:00", endTime: "17:00" })
+
+    const normalizeBlocks = (blocks?: UITimeBlock[]) => (blocks && blocks.length ? blocks : [defaultTimeBlock()])
+
     const availabilityEquals = (a: UIAvailability, b: UIAvailability) =>
         DAY_ORDER.every(day => {
             const dayA = a[day]
             const dayB = b[day]
-            return dayA.isWorking === dayB.isWorking && dayA.startTime === dayB.startTime && dayA.endTime === dayB.endTime
+            if (dayA.isWorking !== dayB.isWorking) return false
+            const blocksA = normalizeBlocks(dayA.blocks)
+            const blocksB = normalizeBlocks(dayB.blocks)
+            if (blocksA.length !== blocksB.length) return false
+            return blocksA.every((block, idx) =>
+                block.startTime === blocksB[idx].startTime && block.endTime === blocksB[idx].endTime
+            )
         })
 
     const availabilityIsDefault = (availability: UIAvailability) => availabilityEquals(availability, emptyWeek())
+
+    const dayLabels: Record<DayKey, string> = {
+        monday: "Maandag",
+        tuesday: "Dinsdag",
+        wednesday: "Woensdag",
+        thursday: "Donderdag",
+        friday: "Vrijdag",
+        saturday: "Zaterdag",
+        sunday: "Zondag",
+    }
+
+    const dayShortLabel = (day: DayKey) => dayLabels[day].slice(0, 2)
 
     function parseSpecialtyString(s: string): UISpecialty[] {
         return s.split(",").map(x => x.trim()).filter(Boolean).map(n => ({ name: n }));
@@ -152,25 +315,223 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
 
     // Derived "isActive" for UI (at least one working day)
     function isActiveFromAvailability(av: UIAvailability): boolean {
-        return Object.values(av).some(d => d.isWorking);
+        return Object.values(av).some(d => d.isWorking && normalizeBlocks(d.blocks).length > 0);
     }
     const activeStaffCount = useMemo(
         () => staffMembers.filter(s => isActiveFromAvailability(s.availability)).length,
         [staffMembers]
     );
 
+    const workingDaysForAvailability = (availability: UIAvailability) =>
+        DAY_ORDER.filter(day => availability[day].isWorking && normalizeBlocks(availability[day].blocks).length > 0).length
+
+    const applyAvailabilityTemplate = (template: "weekday" | "weekend" | "copy" | "clear") => {
+        if (template === "copy") {
+            const snapshot = lastSavedAvailabilityRef.current
+            if (!snapshot) {
+                toast({
+                    title: "Geen eerdere week",
+                    description: "Voeg eerst een medewerker toe om een schema te kunnen kopiëren.",
+                    variant: "destructive",
+                })
+                return
+            }
+            setNewStaffMember(prev => ({
+                ...prev,
+                availability: JSON.parse(JSON.stringify(snapshot)) as UIAvailability,
+            }))
+            return
+        }
+        if (template === "clear") {
+            setNewStaffMember(prev => ({
+                ...prev,
+                availability: emptyWeek(),
+            }))
+            return
+        }
+
+        const targetDays =
+            template === "weekday"
+                ? ["monday", "tuesday", "wednesday", "thursday", "friday"]
+                : ["saturday", "sunday"]
+
+        setNewStaffMember(prev => {
+            const nextAvailability = { ...prev.availability }
+            DAY_ORDER.forEach(day => {
+                const isTarget = targetDays.includes(day)
+                if (template === "weekday") {
+                    nextAvailability[day as DayKey] = {
+                        isWorking: isTarget,
+                        blocks: isTarget ? [defaultTimeBlock()] : [{ ...defaultTimeBlock() }],
+                    }
+                } else {
+                    nextAvailability[day as DayKey] = {
+                        isWorking: isTarget,
+                        blocks: isTarget ? [{ startTime: "10:00", endTime: "16:00" }] : [{ ...defaultTimeBlock() }],
+                    }
+                }
+            })
+            return {
+                ...prev,
+                availability: nextAvailability,
+            }
+        })
+    }
+
+    const validateBlocks = (blocks: UITimeBlock[]) => {
+        const errors: string[] = []
+        blocks.forEach(block => {
+            if (!block.startTime || !block.endTime) {
+                errors.push("Vul zowel begin- als eindtijd in.")
+                return
+            }
+            if (block.endTime <= block.startTime) {
+                errors.push("Eindtijd moet na begintijd liggen.")
+            }
+        })
+        const sorted = [...blocks].sort((a, b) => a.startTime.localeCompare(b.startTime))
+        sorted.forEach((block, idx) => {
+            const next = sorted[idx + 1]
+            if (!next) return
+            if (block.endTime > next.startTime) {
+                errors.push("Tijdblokken overlappen elkaar.")
+            }
+        })
+        return errors
+    }
+
+    const getAvailabilityWarnings = (availability: UIAvailability) => {
+        const warnings: Partial<Record<DayKey, string[]>> = {}
+        DAY_ORDER.forEach(day => {
+            const entry = availability[day]
+            if (!entry.isWorking) return
+            const errors = validateBlocks(normalizeBlocks(entry.blocks))
+            if (errors.length) {
+                warnings[day] = errors
+            }
+        })
+        return warnings
+    }
+
+    const staffAvailabilityWarnings = useMemo(
+        () => getAvailabilityWarnings(newStaffMember.availability),
+        [newStaffMember.availability]
+    )
+
+    const updateNewStaffAvailability = (day: DayKey, updater: (entry: UIAvailability[DayKey]) => UIAvailability[DayKey]) => {
+        setNewStaffMember(prev => {
+            const current = prev.availability[day]
+            const nextEntry = updater({
+                ...current,
+                blocks: [...normalizeBlocks(current.blocks)],
+            })
+            return {
+                ...prev,
+                availability: {
+                    ...prev.availability,
+                    [day]: nextEntry,
+                },
+            }
+        })
+    }
+
+    const updateNewStaffTimeBlock = (day: DayKey, field: keyof UITimeBlock, value: string) => {
+        updateNewStaffAvailability(day, entry => ({
+            ...entry,
+            blocks: normalizeBlocks(entry.blocks).map((block, idx) =>
+                idx === 0 ? { ...block, [field]: value } : block
+            ),
+        }))
+    }
+
+    const updateDraftTimeBlock = (day: DayKey, field: keyof UITimeBlock, value: string) => {
+        if (!staffDraft) return
+        setStaffDraft(prev => {
+            if (!prev) return prev
+            const dayEntry = prev.availability[day]
+            const nextBlocks = normalizeBlocks(dayEntry.blocks).map((block, idx) =>
+                idx === 0 ? { ...block, [field]: value } : block
+            )
+            return {
+                ...prev,
+                availability: {
+                    ...prev.availability,
+                    [day]: {
+                        ...dayEntry,
+                        blocks: nextBlocks,
+                    },
+                },
+            }
+        })
+    }
+
+    const addTimeBlock = (day: DayKey) => {
+        updateNewStaffAvailability(day, entry => ({
+            ...entry,
+            isWorking: true,
+            blocks: [...normalizeBlocks(entry.blocks), defaultTimeBlock()],
+        }))
+    }
+
+    const updateTimeBlock = (day: DayKey, blockIndex: number, field: keyof UITimeBlock, value: string) => {
+        updateNewStaffAvailability(day, entry => {
+            const nextBlocks = normalizeBlocks(entry.blocks).map((block, idx) =>
+                idx === blockIndex ? { ...block, [field]: value } : block
+            )
+            return {
+                ...entry,
+                blocks: nextBlocks,
+            }
+        })
+    }
+
+    const removeTimeBlock = (day: DayKey, blockIndex: number) => {
+        updateNewStaffAvailability(day, entry => {
+            const blocks = normalizeBlocks(entry.blocks)
+            if (blocks.length === 1) return entry
+            return {
+                ...entry,
+                blocks: blocks.filter((_, idx) => idx !== blockIndex),
+            }
+        })
+    }
+
+    const staffNameError = (newStaffMember.name ?? "").trim() === "" ? "Naam is verplicht" : ""
+    const staffRoleError = (newStaffMember.role ?? "").trim() === "" ? "Rol is verplicht" : ""
+
     const handleAddStaffMember = async () => {
-        if (!newStaffMember.name || !newStaffMember.role) return
+        const missingName = newStaffMember.name.trim() === ""
+        const missingRole = newStaffMember.role.trim() === ""
+        if (missingName || missingRole || Object.keys(staffAvailabilityWarnings).length) {
+            setStaffFieldTouched({ name: true, role: true })
+            if (Object.keys(staffAvailabilityWarnings).length) {
+                toast({
+                    title: "Beschikbaarheid controleren",
+                    description: "Pas overlappende of ongeldige tijdsblokken aan.",
+                    variant: "destructive",
+                })
+            }
+            return
+        }
         try {
+            setCreatingStaff(true)
+            const googleCalendarId = phorestConnected ? null : newStaffMember.googleCalendarId
+            const googleCalendarSummary = phorestConnected ? null : newStaffMember.googleCalendarSummary
+            const phorestStaffId = phorestConnected ? newStaffMember.phorestStaffId : null
             const created = await addStaffMember({
-                name: newStaffMember.name,
-                role: newStaffMember.role,
+                name: newStaffMember.name.trim(),
+                role: newStaffMember.role.trim(),
                 specialties: parseSpecialtyString(newStaffMember.specialties),
                 availability: newStaffMember.availability,
-                googleCalendarId: newStaffMember.googleCalendarId,
-                googleCalendarSummary: newStaffMember.googleCalendarSummary,
+                googleCalendarId,
+                googleCalendarSummary,
+                phorestStaffId,
             })
+            if (phorestConnected && (phorestStaffId ?? null) !== null) {
+                await syncPhorestLink(created.id, phorestStaffId, null)
+            }
             setStaffMembers(prev => [...prev, created])
+            lastSavedAvailabilityRef.current = created.availability
             setNewStaffMember({
                 name: "",
                 role: "",
@@ -178,9 +539,23 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                 availability: emptyWeek(),
                 googleCalendarId: null,
                 googleCalendarSummary: null,
+                phorestStaffId: null,
+            })
+            setStaffFieldTouched({ name: false, role: false })
+            toast({
+                title: "Staflid toegevoegd",
+                description: `${created.name} is toegevoegd aan je team.`,
             })
         } catch (err: any) {
-            setError(err.message)
+            const message = err?.message ?? "Toevoegen mislukt"
+            setError(message)
+            toast({
+                title: "Toevoegen mislukt",
+                description: message,
+                variant: "destructive",
+            })
+        } finally {
+            setCreatingStaff(false)
         }
     }
 
@@ -194,6 +569,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
             availability: JSON.parse(JSON.stringify(s.availability)) as UIAvailability, // deep copy
             googleCalendarId: s.googleCalendarId,
             googleCalendarSummary: s.googleCalendarSummary,
+            phorestStaffId: s.phorestStaffId ?? null,
         })
     }
 
@@ -211,16 +587,25 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     const handleSaveStaffDraft = async () => {
         if (!staffDraft?.id) return
         const draftSnapshot = staffDraft
+        const previousStaff = staffMembers.find(s => s.id === draftSnapshot.id) ?? null
         try {
+            const googleCalendarId = phorestConnected ? null : draftSnapshot.googleCalendarId
+            const googleCalendarSummary = phorestConnected ? null : draftSnapshot.googleCalendarSummary
             const updated = await updateStaffMember({
                 id: draftSnapshot.id,
                 name: draftSnapshot.name,
                 role: draftSnapshot.role,
                 specialties: parseSpecialtyString(draftSnapshot.specialties),
                 availability: draftSnapshot.availability,
-                googleCalendarId: draftSnapshot.googleCalendarId,
-                googleCalendarSummary: draftSnapshot.googleCalendarSummary,
+                googleCalendarId,
+                googleCalendarSummary,
+                phorestStaffId: draftSnapshot.phorestStaffId ?? null,
             })
+            await syncPhorestLink(
+                draftSnapshot.id,
+                draftSnapshot.phorestStaffId ?? null,
+                previousStaff?.phorestStaffId ?? null
+            )
             // reflect in UI
             setStaffMembers(prev => prev.map(s =>
                 s.id === draftSnapshot.id ? updated : s
@@ -248,11 +633,92 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const m = minutes % 60
         return m > 0 ? `${h}h ${m}m` : `${h}h`
     }
-    const categories = [...new Set(appointmentTypes.map(apt => apt.category))]
+    const presetGroups = useMemo(() => {
+        const map = new Map<string, AppointmentPreset[]>()
+        presetOptions.forEach(preset => {
+            const key = preset.category || "Overig"
+            if (!map.has(key)) {
+                map.set(key, [])
+            }
+            map.get(key)!.push(preset)
+        })
+        return Array.from(map.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([category, presets]) => ({
+                category,
+                presets: [...presets].sort((a, b) => a.name.localeCompare(b.name)),
+            }))
+    }, [presetOptions])
+
+    const startPresetConfiguration = (preset: AppointmentPreset) => {
+        setPendingPreset(preset)
+        setPendingDuration(preset.duration)
+        setPendingPrice("")
+    }
+
+    const handleConfirmPreset = async () => {
+        if (!pendingPreset) return
+        const normalisedPrice = pendingPrice.trim()
+        const numericPrice = Number(normalisedPrice)
+        const categoryName = pendingPreset.category?.trim() ?? ""
+        const categoryFields: Partial<AppointmentTypeForm> = {}
+        if (categoryName) {
+            const matchedCategory = appointmentCategories.find(
+                option => (option.name ?? "").trim().toLowerCase() === categoryName.toLowerCase()
+            )
+            if (matchedCategory?.id != null) {
+                categoryFields.categoryId = matchedCategory.id
+                categoryFields.newCategoryName = undefined
+            } else {
+                categoryFields.categoryId = null
+                categoryFields.newCategoryName = categoryName
+            }
+        }
+        const payload: AppointmentTypeForm = {
+            name: pendingPreset.name,
+            duration: pendingDuration,
+            price: normalisedPrice && Number.isFinite(numericPrice) ? numericPrice : undefined,
+            description: pendingPreset.description ?? "",
+            ...categoryFields,
+        }
+        setNewAppointmentType(prev => ({
+            ...prev,
+            ...payload,
+        }))
+        setPrefillFlashFields(["name", "duration", "price", "description", "category"])
+        setLastAppliedPreset(pendingPreset)
+        try {
+            setCreatingAppointment(true)
+            const created = await addAppointmentType(payload)
+            setAppointmentTypes(prev => [...prev, created])
+            toast({
+                title: "Preset toegevoegd",
+                description: `${created.name} is direct opgeslagen.`,
+            })
+            setPresetDialogOpen(false)
+            setPendingPreset(null)
+        } catch (err: any) {
+            const message = err?.message ?? "Preset toepassen mislukt"
+            toast({
+                title: "Toevoegen mislukt",
+                description: message,
+                variant: "destructive",
+            })
+        } finally {
+            setCreatingAppointment(false)
+        }
+    }
+
+    const clearAppliedPreset = () => {
+        setLastAppliedPreset(null)
+        setNewAppointmentType({ name: "", duration: 30, price: undefined, description: "", categoryId: null })
+    }
 
     const hasNewAppointmentTypeChanges = useMemo(() => {
         const nameChanged = (newAppointmentType.name ?? "").trim() !== ""
-        const categoryChanged = (newAppointmentType.category ?? "").trim() !== ""
+        const categoryChanged =
+            (newAppointmentType.newCategoryName?.trim() ?? "") !== "" ||
+            newAppointmentType.categoryId != null
         const descriptionChanged = (newAppointmentType.description ?? "").trim() !== ""
         const priceChanged = newAppointmentType.price != null
         const duration = newAppointmentType.duration ?? 30
@@ -266,7 +732,8 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const specialtiesChanged = newStaffMember.specialties.trim() !== ""
         const availabilityChanged = !availabilityIsDefault(newStaffMember.availability)
         const calendarChanged = newStaffMember.googleCalendarId !== null
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
+        const phorestChanged = newStaffMember.phorestStaffId !== null
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged || phorestChanged
     }, [newStaffMember])
 
     const staffDraftChanged = useMemo(() => {
@@ -284,7 +751,8 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const calendarChanged =
             (staffDraft.googleCalendarId ?? null) !== (original.googleCalendarId ?? null) ||
             (staffDraft.googleCalendarSummary ?? null) !== (original.googleCalendarSummary ?? null)
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
+        const phorestChanged = (staffDraft.phorestStaffId ?? null) !== (original.phorestStaffId ?? null)
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged || phorestChanged
     }, [staffDraft, staffMembers])
 
     const hasUnsavedChanges = hasNewAppointmentTypeChanges || hasNewStaffChanges || staffDraftChanged
@@ -317,486 +785,133 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                     </TabsList>
 
                     {/* ----------------- Appointment Types ----------------- */}
-                    <TabsContent value="appointment-types" className="space-y-6">
-                        <Card>
-                            <CardHeader className="text-[#081245]">
-                                <CardTitle className="flex items-center space-x-2">
-                                    <Plus className="h-5 w-5" />
-                                    <span>Nieuw afspraaktype toevoegen</span>
-                                </CardTitle>
-                                <CardDescription>Maak verschillende soorten afspraken aan met duur en prijsstelling</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <div>
-                                        <Label>Dienst</Label>
-                                        <Input
-                                            placeholder="bijv. Knipbeurt mannen"
-                                            value={newAppointmentType.name || ""}
-                                            onChange={e => setNewAppointmentType({ ...newAppointmentType, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Duur (minuten)</Label>
-                                        <Input
-                                            type="number"
-                                            min="5"
-                                            value={newAppointmentType.duration || ""}
-                                            onChange={e => setNewAppointmentType({ ...newAppointmentType, duration: parseInt(e.target.value) })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Prijs (€) - Optioneel</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={newAppointmentType.price ?? ""}
-                                            onChange={e => setNewAppointmentType({
-                                                ...newAppointmentType,
-                                                price: e.target.value ? parseFloat(e.target.value) : undefined
-                                            })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Categorie</Label>
-                                        <Input
-                                            value={newAppointmentType.category || ""}
-                                            onChange={e => setNewAppointmentType({ ...newAppointmentType, category: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mt-4">
-                                    <Label>Beschrijving</Label>
-                                    <Textarea
-                                        value={newAppointmentType.description || ""}
-                                        onChange={e => setNewAppointmentType({ ...newAppointmentType, description: e.target.value })}
-                                    />
-                                </div>
-                                <div className="mt-4">
-                                    <Button onClick={handleAddAppointmentType} className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70">
-                                        <Plus className="h-4 w-4 mr-2" /> Afspraaktype toevoegen
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
 
-                        {/* Existing */}
-                        <div className="space-y-4">
-                            {categories.map(category => (
-                                <Card key={category}>
-                                    <CardHeader className="text-[#081245]"><CardTitle>{category}</CardTitle></CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {appointmentTypes.filter(apt => apt.category === category).map(appointmentType => (
-                                                <Card key={appointmentType.id} className="border-2 hover:border-blue-200">
-                                                    <CardContent className="p-4">
-                                                        {editingAppointment === appointmentType.id ? (
-                                                            <div className="space-y-3">
-                                                                <Input
-                                                                    value={appointmentType.name}
-                                                                    onChange={e => handleUpdateAppointmentType(appointmentType.id, { name: e.target.value })}
-                                                                />
-                                                                <div className="grid grid-cols-2 gap-2">
-                                                                    <Input
-                                                                        type="number"
-                                                                        value={appointmentType.duration}
-                                                                        onChange={e => handleUpdateAppointmentType(appointmentType.id, { duration: parseInt(e.target.value) })}
-                                                                    />
-                                                                    <Input
-                                                                        type="number"
-                                                                        value={appointmentType.price ?? ""}
-                                                                        onChange={e => handleUpdateAppointmentType(appointmentType.id, {
-                                                                            price: e.target.value ? parseFloat(e.target.value) : undefined
-                                                                        })}
-                                                                    />
-                                                                </div>
-                                                                <Textarea
-                                                                    value={appointmentType.description || ""}
-                                                                    onChange={e => handleUpdateAppointmentType(appointmentType.id, { description: e.target.value })}
-                                                                />
-                                                                <div className="flex space-x-2">
-                                                                    <Button size="sm" onClick={() => setEditingAppointment(null)}>Opslaan</Button>
-                                                                    <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>Annuleren</Button>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div>
-                                                                <div className="flex items-start justify-between mb-2">
-                                                                    <h3 className="font-medium">{appointmentType.name}</h3>
-                                                                    <div className="flex space-x-1">
-                                                                        <Button variant="ghost" size="sm" onClick={() => setEditingAppointment(appointmentType.id)}>
-                                                                            <Edit className="h-3 w-3"/>
-                                                                        </Button>
-                                                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteAppointmentType(appointmentType.id)} className="text-red-500">
-                                                                            <Trash2 className="h-3 w-3"/>
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <div className="flex items-center space-x-2">
-                                                                        <Clock className="h-4 w-4 text-gray-500" />
-                                                                        <span>{formatDuration(appointmentType.duration)}</span>
-                                                                    </div>
-                                                                    {appointmentType.price != null && (
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <Euro className="h-4 w-4 text-gray-500" />
-                                                                            <span>€{Number(appointmentType.price).toFixed(2)}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {appointmentType.description && (
-                                                                        <p className="text-xs text-gray-500">{appointmentType.description}</p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                    <TabsContent value="appointment-types" className="space-y-6">
+
+                        <AppointmentTypesTab
+
+                            appointmentTypes={appointmentTypes}
+
+                            newAppointmentType={newAppointmentType}
+
+                            setNewAppointmentType={setNewAppointmentType}
+
+                            prefillFlashFields={prefillFlashFields}
+
+                            categoryOptions={appointmentCategories}
+
+                            presetGroups={presetGroups}
+
+                            presetsLoading={presetsLoading}
+
+                            presetsError={presetsError}
+
+                            isPresetDialogOpen={isPresetDialogOpen}
+
+                            setPresetDialogOpen={setPresetDialogOpen}
+
+                            pendingPreset={pendingPreset}
+
+                            setPendingPreset={setPendingPreset}
+
+                            pendingDuration={pendingDuration}
+
+                            setPendingDuration={setPendingDuration}
+
+                            pendingPrice={pendingPrice}
+
+                            setPendingPrice={setPendingPrice}
+
+                            lastAppliedPreset={lastAppliedPreset}
+
+                            clearAppliedPreset={clearAppliedPreset}
+
+                            startPresetConfiguration={startPresetConfiguration}
+
+                            handleConfirmPreset={handleConfirmPreset}
+
+                            creatingAppointment={creatingAppointment}
+
+                            handleAddAppointmentType={handleAddAppointmentType}
+
+                            editingAppointment={editingAppointment}
+
+                            setEditingAppointment={setEditingAppointment}
+
+                            handleUpdateAppointmentType={handleUpdateAppointmentType}
+
+                            deleteTarget={deleteTarget}
+
+                            setDeleteTarget={setDeleteTarget}
+
+                            deletingAppointment={deletingAppointment}
+
+                            handleDeleteAppointmentType={handleDeleteAppointmentType}
+
+                            formatDuration={formatDuration}
+
+                        />
+
                     </TabsContent>
 
                     {/* ----------------- Staff Members ----------------- */}
+
                     <TabsContent value="staff-members" className="space-y-6">
-                        {/* Add new staff */}
-                        <Card>
-                            <CardHeader className="text-[#081245]">
-                                <CardTitle className="flex items-center space-x-2">
-                                    <Plus className="h-5 w-5" /> <span>Nieuwe medewerker toevoegen</span>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <div>
-                                        <Label>Naam</Label>
-                                        <Input
-                                            value={newStaffMember.name}
-                                            onChange={e => setNewStaffMember({ ...newStaffMember, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Rol/titel</Label>
-                                        <Input
-                                            value={newStaffMember.role}
-                                            onChange={e => setNewStaffMember({ ...newStaffMember, role: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Specialiteiten</Label>
-                                        <Input
-                                            placeholder="bijv. Knippen, Kleuren"
-                                            value={newStaffMember.specialties}
-                                            onChange={e => setNewStaffMember({ ...newStaffMember, specialties: e.target.value })}
-                                        />
-                                    </div>
-                                    {hasCalendars && (
-                                        <div>
-                                            <Label>Google Calendar</Label>
-                                            <Select
-                                                value={newStaffMember.googleCalendarId ?? "__none__"}
-                                                onValueChange={value => {
-                                                    if (value === "__none__") {
-                                                        setNewStaffMember(prev => ({
-                                                            ...prev,
-                                                            googleCalendarId: null,
-                                                            googleCalendarSummary: null,
-                                                        }))
-                                                        return
-                                                    }
-                                                    const selected = calendars.find(c => c.id === value)
-                                                    setNewStaffMember(prev => ({
-                                                        ...prev,
-                                                        googleCalendarId: selected?.id ?? null,
-                                                        googleCalendarSummary: calendarDisplayLabel(selected) ?? selected?.id ?? null,
-                                                    }))
-                                                }}
-                                            >
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Koppel een kalender" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="__none__">Geen koppeling</SelectItem>
-                                                    {calendars.map(calendar => (
-                                                        <SelectItem key={calendar.id} value={calendar.id}>
-                                                            {calendarDisplayLabel(calendar) ?? calendar.id}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
 
-                                    {/* Weekly Availability Editor */}
-                                    <div className="md:col-span-2">
-                                        <Label className="text-base font-medium">Weekly Availability</Label>
-                                        <div className="space-y-2 mt-2 bg-gray-50 p-4 rounded-lg">
-                                            {DAY_ORDER.map((day) => {
-                                                const schedule = newStaffMember.availability[day];
-                                                return (
-                                                    <div key={day} className="flex items-center gap-3">
-                                                        <div className="w-24 text-sm font-medium capitalize">{day}</div>
-                                                        <Button
-                                                            type="button"
-                                                            variant={schedule.isWorking ? "default" : "outline"}
-                                                            size="sm"
-                                                            className="w-20 h-8 text-xs"
-                                                            onClick={() => {
-                                                                const next = {...newStaffMember.availability};
-                                                                next[day] = { ...next[day], isWorking: !next[day].isWorking };
-                                                                setNewStaffMember({ ...newStaffMember, availability: next });
-                                                            }}
-                                                        >
-                                                            {schedule.isWorking ? "Working" : "Off"}
-                                                        </Button>
-                                                        {schedule.isWorking && (
-                                                            <>
-                                                                <Input
-                                                                    type="time"
-                                                                    value={schedule.startTime}
-                                                                    onChange={e => {
-                                                                        const next = {...newStaffMember.availability};
-                                                                        next[day] = { ...next[day], startTime: e.target.value };
-                                                                        setNewStaffMember({ ...newStaffMember, availability: next });
-                                                                    }}
-                                                                    className="w-24 h-8 text-sm"
-                                                                />
-                                                                <span className="text-sm text-gray-500">to</span>
-                                                                <Input
-                                                                    type="time"
-                                                                    value={schedule.endTime}
-                                                                    onChange={e => {
-                                                                        const next = {...newStaffMember.availability};
-                                                                        next[day] = { ...next[day], endTime: e.target.value };
-                                                                        setNewStaffMember({ ...newStaffMember, availability: next });
-                                                                    }}
-                                                                    className="w-24 h-8 text-sm"
-                                                                />
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
+                        <StaffMembersTab
 
-                                <div className="mt-4">
-                                    <Button className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70" onClick={handleAddStaffMember}>
-                                        <Plus className="h-4 w-4 mr-2" /> Add Staff Member
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            newStaffMember={newStaffMember}
 
-                        {/* Existing staff list */}
-                        <Card>
-                            <CardHeader className="text-[#081245]"><CardTitle>Team Leden</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-                                    {staffMembers.map(s => {
-                                        const active = isActiveFromAvailability(s.availability);
-                                        const linkedCalendar = calendars.find(c => c.id === s.googleCalendarId);
-                                        const calendarLabel =
-                                            calendarDisplayLabel(linkedCalendar) ??
-                                            s.googleCalendarSummary ??
-                                            s.googleCalendarId ??
-                                            "Geen koppeling";
-                                        return (
-                                            <Card key={s.id} className="border-2 hover:border-blue-200">
-                                                <CardContent className="p-4">
-                                                    {editingStaff === s.id && staffDraft ? (
-                                                        <div className="space-y-3">
-                                                            <Input
-                                                                value={staffDraft.name}
-                                                                onChange={e => setStaffDraft({ ...staffDraft, name: e.target.value })}
-                                                            />
-                                                            <Input
-                                                                value={staffDraft.role}
-                                                                onChange={e => setStaffDraft({ ...staffDraft, role: e.target.value })}
-                                                            />
-                                                            <Input
-                                                                value={staffDraft.specialties}
-                                                                onChange={e => setStaffDraft({ ...staffDraft, specialties: e.target.value })}
-                                                            />
-                                                            {hasCalendars && (
-                                                                <div>
-                                                                    <Label className="text-sm font-medium">Google Calendar</Label>
-                                                                    <Select
-                                                                        value={staffDraft.googleCalendarId ?? "__none__"}
-                                                                        onValueChange={value => {
-                                                                            setStaffDraft(prev => {
-                                                                                if (!prev) return prev
-                                                                                if (value === "__none__") {
-                                                                                    return {
-                                                                                        ...prev,
-                                                                                        googleCalendarId: null,
-                                                                                        googleCalendarSummary: null,
-                                                                                    }
-                                                                                }
-                                                                                const selected = calendars.find(c => c.id === value)
-                                                                                return {
-                                                                                    ...prev,
-                                                                                    googleCalendarId: selected?.id ?? null,
-                                                                                    googleCalendarSummary: calendarDisplayLabel(selected) ?? selected?.id ?? null,
-                                                                                }
-                                                                            })
-                                                                        }}
-                                                                    >
-                                                                        <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Koppel een kalender" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="__none__">Geen koppeling</SelectItem>
-                                                                            {calendars.map(calendar => (
-                                                                                <SelectItem key={calendar.id} value={calendar.id}>
-                                                                                    {calendarDisplayLabel(calendar) ?? calendar.id}
-                                                                                </SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-                                                            )}
+                            setNewStaffMember={setNewStaffMember}
 
-                                                            {/* Edit weekly availability */}
-                                                            <div>
-                                                                <Label className="text-sm font-medium">Weekly Availability</Label>
-                                                                <div className="space-y-2 mt-2 bg-gray-50 p-3 rounded-lg">
-                                                                    {DAY_ORDER.map(day => {
-                                                                        const schedule = staffDraft.availability[day];
-                                                                        return (
-                                                                            <div key={day} className="flex items-center gap-2">
-                                                                                <div className="w-20 text-xs font-medium capitalize">{day.slice(0,3)}</div>
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    variant={schedule.isWorking ? "default" : "outline"}
-                                                                                    size="sm"
-                                                                                    className="w-16 h-7 text-xs"
-                                                                                    onClick={() => updateDraftAvailability(day, { isWorking: !schedule.isWorking })}
-                                                                                >
-                                                                                    {schedule.isWorking ? "Work" : "Off"}
-                                                                                </Button>
-                                                                                {schedule.isWorking && (
-                                                                                    <>
-                                                                                        <Input
-                                                                                            type="time"
-                                                                                            value={schedule.startTime}
-                                                                                            onChange={e => updateDraftAvailability(day, { startTime: e.target.value })}
-                                                                                            className="w-20 h-7 text-xs"
-                                                                                        />
-                                                                                        <span className="text-xs text-gray-500">to</span>
-                                                                                        <Input
-                                                                                            type="time"
-                                                                                            value={schedule.endTime}
-                                                                                            onChange={e => updateDraftAvailability(day, { endTime: e.target.value })}
-                                                                                            className="w-20 h-7 text-xs"
-                                                                                        />
-                                                                                    </>
-                                                                                )}
-                                                                            </div>
-                                                                        )
-                                                                    })}
-                                                                </div>
-                                                            </div>
+                            calendars={calendars}
 
-                                                            <div className="flex space-x-2">
-                                                                <Button size="sm" onClick={handleSaveStaffDraft}>Save</Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => {
-                                                                        setEditingStaff(null)
-                                                                        setStaffDraft(null)
-                                                                    }}
-                                                                >
-                                                                    Cancel
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div>
-                                                            <div className="flex items-start justify-between mb-3">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <User className="h-5 w-5 text-blue-600" />
-                                                                    <h3 className="font-medium text-[#081245]">{s.name}</h3>
-                                                                </div>
-                                                                <div className="flex space-x-1">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => openEditStaff(s)}
-                                                                        className="h-6 w-6 p-0"
-                                                                    >
-                                                                        <Edit className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleDeleteStaffMember(s.id)}
-                                                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
+                            staffMembers={staffMembers}
 
-                                                            <div className="space-y-3">
-                                                                <p className="text-sm text-gray-600 font-medium">{s.role}</p>
+                            creatingStaff={creatingStaff}
 
-                                                                {s.specialties.length > 0 && (
-                                                                    <div className="flex flex-wrap gap-1">
-                                                                        {s.specialties.map((sp, i) => (
-                                                                            <Badge key={i} variant="secondary" className="text-xs">{sp.name}</Badge>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
+                            handleAddStaffMember={handleAddStaffMember}
 
-                                                                <div className="text-xs text-gray-600">
-                                                                    <span className="font-semibold text-gray-700 mr-1">Google Calendar:</span>
-                                                                    {calendarLabel}
-                                                                </div>
+                            editingStaff={editingStaff}
 
-                                                                {/* Availability Display */}
-                                                                <div className="bg-gray-50 p-3 rounded-lg">
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <span className="text-xs font-medium text-gray-700">Weekly Schedule</span>
-                                                                        <Badge variant="outline" className="text-xs">
-                                                                            {Object.values(s.availability).filter(d => d.isWorking).length} days/week
-                                                                        </Badge>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        {DAY_ORDER.filter(d => s.availability[d].isWorking).map(d => (
-                                                                            <div key={d} className="flex justify-between text-xs">
-                                                                                <span className="capitalize font-medium">{d}</span>
-                                                                                <span className="text-gray-600">
-                                          {s.availability[d].startTime} - {s.availability[d].endTime}
-                                        </span>
-                                                                            </div>
-                                                                        ))}
-                                                                        {Object.values(s.availability).every(d => !d.isWorking) && (
-                                                                            <div className="text-xs text-gray-500 text-center py-2">No working days set</div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                            setEditingStaff={setEditingStaff}
 
-                                                                <div className="flex items-center space-x-2">
-                                                                    <div className={`w-2 h-2 rounded-full ${active ? "bg-green-500" : "bg-gray-400"}`} />
-                                                                    <span className="text-xs text-gray-500">{active ? "Active" : "Inactive"}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </CardContent>
-                                            </Card>
-                                        )
-                                    })}
-                                </div>
-                            </CardContent>
-                        </Card>
+                            staffDraft={staffDraft}
+
+                            setStaffDraft={setStaffDraft}
+
+                            openEditStaff={openEditStaff}
+
+                            handleSaveStaffDraft={handleSaveStaffDraft}
+
+                            handleDeleteStaffMember={handleDeleteStaffMember}
+
+                            updateNewStaffTimeBlock={updateNewStaffTimeBlock}
+
+                            updateDraftAvailability={updateDraftAvailability}
+
+                            updateDraftTimeBlock={updateDraftTimeBlock}
+
+                            normalizeBlocks={normalizeBlocks}
+
+                            DAY_ORDER={DAY_ORDER}
+
+                            calendarDisplayLabel={calendarDisplayLabel}
+
+                            isActiveFromAvailability={isActiveFromAvailability}
+
+                            applyAvailabilityTemplate={applyAvailabilityTemplate}
+
+                            phorestConnected={phorestConnected}
+                            phorestStaff={phorestStaff}
+                            phorestLoading={phorestLoading}
+                            phorestLinkingStaffId={phorestLinkingStaffId}
+
+                        />
+
                     </TabsContent>
-                </Tabs>
+
+               </Tabs>
 
                 {/* Summary */}
                 <Card className="bg-blue-50 border-blue-200 mt-6">
