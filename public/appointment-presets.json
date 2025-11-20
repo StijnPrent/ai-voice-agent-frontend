@@ -1,0 +1,142 @@
+[
+  {
+    "id": "cut-women-short",
+    "name": "Knipbeurt dames - kort haar",
+    "category": "Knippen",
+    "duration": 45,
+    "description": "Wassen, knippen en stylen voor kort dameshaar."
+  },
+  {
+    "id": "cut-women-medium",
+    "name": "Knipbeurt dames - halflang haar",
+    "category": "Knippen",
+    "duration": 60,
+    "description": "Wassen, knippen, föhnen voor halflang haar."
+  },
+  {
+    "id": "cut-women-long",
+    "name": "Knipbeurt dames - lang haar",
+    "category": "Knippen",
+    "duration": 75,
+    "description": "Uitgebreide knip- en style afspraak voor lang haar."
+  },
+  {
+    "id": "cut-men-fade",
+    "name": "Heren knipbeurt met fade",
+    "category": "Knippen",
+    "duration": 45,
+    "description": "Skin fade of taper fade inclusief styling."
+  },
+  {
+    "id": "cut-men-classic",
+    "name": "Heren klassiek knippen",
+    "category": "Knippen",
+    "duration": 30,
+    "description": "Knippen en stylen van heren kapsel."
+  },
+  {
+    "id": "cut-children",
+    "name": "Kinderknipbeurt",
+    "category": "Knippen",
+    "duration": 30,
+    "description": "Kids knipbeurt t/m 12 jaar."
+  },
+  {
+    "id": "color-touchup",
+    "name": "Uitgroei kleuren",
+    "category": "Kleuren",
+    "duration": 75,
+    "description": "Uitgroei bijwerken tot 2 cm."
+  },
+  {
+    "id": "color-full-head",
+    "name": "Volledige kleuring",
+    "category": "Kleuren",
+    "duration": 120,
+    "description": "Volledige kleuring inclusief toner."
+  },
+  {
+    "id": "color-balayage",
+    "name": "Balayage / ombre",
+    "category": "Kleuren",
+    "duration": 150,
+    "description": "Hand-painted balayage met toner en styling."
+  },
+  {
+    "id": "color-highlights-half",
+    "name": "Highlights half hoofd",
+    "category": "Kleuren",
+    "duration": 120,
+    "description": "Folies in kruin en zijkanten + toner."
+  },
+  {
+    "id": "color-highlights-full",
+    "name": "Highlights volledig hoofd",
+    "category": "Kleuren",
+    "duration": 165,
+    "description": "Complete highlight service inclusief toner."
+  },
+  {
+    "id": "color-toner-refresh",
+    "name": "Toner & glansbehandeling",
+    "category": "Kleuren",
+    "duration": 45,
+    "description": "Opfrisser voor blonde en gekleurde tinten."
+  },
+  {
+    "id": "styling-blowdry",
+    "name": "Fohn & styling",
+    "category": "Styling",
+    "duration": 30,
+    "description": "Volume föhn of smooth finish."
+  },
+  {
+    "id": "styling-updo",
+    "name": "Opsteken / bruidskapsel",
+    "category": "Styling",
+    "duration": 60,
+    "description": "Feestelijk opsteken of bridal trial."
+  },
+  {
+    "id": "styling-braids",
+    "name": "Vlechten & beschermende stijlen",
+    "category": "Styling",
+    "duration": 75,
+    "description": "Box braids, cornrows of twist styling."
+  },
+  {
+    "id": "treatment-keratin",
+    "name": "Kerastase / keratine behandeling",
+    "category": "Behandelingen",
+    "duration": 90,
+    "description": "Diepe verzorging voor glad en glanzend haar."
+  },
+  {
+    "id": "treatment-curls",
+    "name": "Krullen definitieservice",
+    "category": "Behandelingen",
+    "duration": 60,
+    "description": "Hydratatie en styling speciaal voor krullen."
+  },
+  {
+    "id": "extensions-consult",
+    "name": "Extensions intake",
+    "category": "Extensions",
+    "duration": 30,
+    "description": "Kleurmatching en advies voor wefts/tapes."
+  },
+  {
+    "id": "extensions-maintenance",
+    "name": "Extensions onderhoud",
+    "category": "Extensions",
+    "duration": 105,
+    "description": "Bijplaatsen, lift of onderhoud van extensions."
+  },
+  {
+    "id": "perm-classic",
+    "name": "Klassieke permanent",
+    "category": "Behandelingen",
+    "duration": 120,
+    "description": "Permanent voor extra volume of krul."
+  }
+]

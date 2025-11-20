@@ -172,3 +172,103 @@ export async function getGoogleCalendars() {
     if (!res.ok) throw new Error("Failed to fetch Google calendars");
     return res.json();
 }
+
+/* --------------------------------- Phorest Integration --------------------------------- */
+export interface PhorestConnectionPayload {
+    businessId: string;
+    branchId: string;
+    username: string;
+    password: string;
+}
+
+export interface PhorestStaffMember {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    name?: string | null;
+    displayName: string;
+    [key: string]: unknown;
+}
+
+export interface PhorestStaffResponse {
+    connected: boolean;
+    staff: PhorestStaffMember[];
+}
+
+function normalizePhorestStaff(raw: any): PhorestStaffMember | null {
+    if (!raw || typeof raw !== "object") return null;
+    const candidate = raw as Record<string, unknown>;
+    const idCandidate = candidate.id ?? candidate.staffId ?? candidate.phorestStaffId ?? candidate.uuid;
+    if (idCandidate == null) return null;
+    const id = String(idCandidate);
+    const firstName = typeof candidate.firstName === "string" ? candidate.firstName : undefined;
+    const lastName = typeof candidate.lastName === "string" ? candidate.lastName : undefined;
+    const name = typeof candidate.name === "string" ? candidate.name : undefined;
+    const displayName =
+        name && name.trim()
+            ? name.trim()
+            : [firstName, lastName].filter(Boolean).join(" ").trim() || id;
+    return {
+        ...candidate,
+        id,
+        name,
+        firstName,
+        lastName,
+        displayName,
+    };
+}
+
+export async function connectPhorestIntegration(payload: PhorestConnectionPayload) {
+    const res = await fetch(`${BACKEND_URL}/phorest/connect`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to connect Phorest integration");
+    return res.json().catch(() => ({}));
+}
+
+export async function disconnectPhorestIntegration() {
+    const res = await fetch(`${BACKEND_URL}/phorest/disconnect`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to disconnect Phorest integration");
+    return res.json().catch(() => ({}));
+}
+
+export async function fetchPhorestStaff(): Promise<PhorestStaffResponse> {
+    const res = await fetch(`${BACKEND_URL}/phorest/staff`, {
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        // treat missing integration as gracefully disconnected
+        if ([400, 404, 409, 412].includes(res.status)) {
+            return { connected: false, staff: [] };
+        }
+        throw new Error(`Failed to fetch Phorest staff (status ${res.status})`);
+    }
+    const body: any = await res.json().catch(() => ({}));
+    let staffRows: unknown = Array.isArray(body)
+        ? body
+        : Array.isArray(body?._embedded?.staffs)
+            ? body._embedded.staffs
+            : Array.isArray(body?.staffs)
+                ? body.staffs
+                : [];
+    if (!Array.isArray(staffRows)) {
+        staffRows = [];
+    }
+    const mapped = (staffRows as unknown[]).map(normalizePhorestStaff).filter((s): s is PhorestStaffMember => Boolean(s));
+    return { connected: true, staff: mapped };
+}
+
+export async function linkPhorestStaffMember(staffMemberId: string, phorestStaffId: string | null) {
+    const res = await fetch(`${BACKEND_URL}/phorest/staff/${staffMemberId}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ phorestStaffId }),
+    });
+    if (!res.ok) throw new Error("Failed to update Phorest staff link");
+    return res.json().catch(() => ({}));
+}
