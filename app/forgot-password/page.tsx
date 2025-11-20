@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Phone, ArrowLeft, Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react"
 import Link from "next/link"
+import { BACKEND_URL } from "@/lib/api"
+import Image from "next/image";
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState("")
@@ -23,12 +25,21 @@ export default function ForgotPasswordPage() {
         setError("")
         setSuccess("")
 
-        // Simulate API call
         try {
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-            setSuccess("Password reset instructions have been sent to your email address.")
+            const response = await fetch(`${BACKEND_URL}/email/password/request-reset`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email.trim().toLowerCase() }),
+            })
+
+            if (!response.ok) {
+                throw new Error("We konden je verzoek nu niet verwerken. Probeer het later opnieuw.")
+            }
+
+            setSuccess("Als het wachtwoord bestaat, zullen we je een e-mail sturen met instructies om het te resetten.")
+            setEmail("")
         } catch (err) {
-            setError("Something went wrong. Please try again.")
+            setError(err instanceof Error ? err.message : "Er is een fout opgetreden. Probeer het later opnieuw.")
         } finally {
             setIsLoading(false)
         }
@@ -40,14 +51,9 @@ export default function ForgotPasswordPage() {
                 {/* Header */}
                 <div className="text-center space-y-4">
                     <div className="flex items-center justify-center space-x-2">
-                        <div className="bg-blue-600 p-2 rounded-lg">
-                            <Phone className="h-6 w-6 text-white" />
+                        <div className="flex items-center justify-center space-x-2">
+                            <Image src="/logocallingbird.svg" alt='logo' width={200} height={50}></Image>
                         </div>
-                        <h1 className="text-2xl font-bold text-[#081245]">VoiceAgent Pro</h1>
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-semibold text-[#081245]">Reset your password</h2>
-                        <p className="text-gray-600">Enter your email to receive reset instructions</p>
                     </div>
                 </div>
 
@@ -56,9 +62,9 @@ export default function ForgotPasswordPage() {
                     <CardHeader className="space-y-1 pb-4 text-[#081245]">
                         <CardTitle className="text-center flex items-center justify-center space-x-2">
                             <Mail className="h-5 w-5" />
-                            <span>Forgot Password</span>
+                            <span>Wachtwoord vergeten</span>
                         </CardTitle>
-                        <CardDescription className="text-center">We'll send you a link to reset your password</CardDescription>
+                        <CardDescription className="text-center">we versturen je een link om je wachtwoord te veranderen</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,7 +74,7 @@ export default function ForgotPasswordPage() {
                                 <Input
                                     id="email"
                                     type="email"
-                                    placeholder="Enter your email address"
+                                    placeholder="Vul je e-mailadres in"
                                     value={email}
                                     onChange={(e) => {
                                         setEmail(e.target.value)
@@ -96,14 +102,14 @@ export default function ForgotPasswordPage() {
                             )}
 
                             {/* Submit Button */}
-                            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                            <Button type="submit" className="w-full h-11 bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70" disabled={isLoading}>
                                 {isLoading ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Sending instructions...
                                     </>
                                 ) : (
-                                    "Send Reset Instructions"
+                                    "Verzend reset instructies"
                                 )}
                             </Button>
 
@@ -111,7 +117,7 @@ export default function ForgotPasswordPage() {
                             <Button type="button" variant="outline" className="w-full h-11 bg-transparent" asChild>
                                 <Link href="/login" className="flex items-center justify-center space-x-2">
                                     <ArrowLeft className="h-4 w-4" />
-                                    <span>Back to Sign In</span>
+                                    <span>Terug naar inloggen</span>
                                 </Link>
                             </Button>
                         </form>
@@ -122,11 +128,11 @@ export default function ForgotPasswordPage() {
                 <Card className="bg-gray-50 border-gray-200">
                     <CardContent className="pt-4">
                         <div className="text-center space-y-2">
-                            <h3 className="text-sm font-medium text-[#081245]">Need help?</h3>
+                            <h3 className="text-sm font-medium text-[#081245]">Hulp nodig?</h3>
                             <p className="text-xs text-gray-600">
-                                If you don't receive an email within a few minutes, check your spam folder or{" "}
+                                Als je binnen enkelen minuten geen email hebt ontvangen, controleer je spam of{" "}
                                 <Link href="/support" className="text-blue-600 hover:text-blue-500">
-                                    contact support
+                                    neem contant op
                                 </Link>
                             </p>
                         </div>
@@ -135,18 +141,7 @@ export default function ForgotPasswordPage() {
 
                 {/* Footer */}
                 <div className="text-center text-xs text-gray-500 space-y-2">
-                    <p>© 2024 VoiceAgent Pro. All rights reserved.</p>
-                    <div className="space-x-4">
-                        <Link href="/privacy" className="hover:text-gray-700">
-                            Privacy Policy
-                        </Link>
-                        <Link href="/terms" className="hover:text-gray-700">
-                            Terms of Service
-                        </Link>
-                        <Link href="/support" className="hover:text-gray-700">
-                            Support
-                        </Link>
-                    </div>
+                    <p>© 2025 Callingbird. Alle rechten gereserveerd.</p>
                 </div>
             </div>
         </div>

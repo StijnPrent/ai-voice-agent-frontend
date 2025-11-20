@@ -25,11 +25,16 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
+    const [needsVerification, setNeedsVerification] = useState(false)
+    const [resendMessage, setResendMessage] = useState("")
+    const [resendLoading, setResendLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError("");
+        setResendMessage("");
+        setNeedsVerification(false);
         try {
             const res = await fetch(`${BACKEND_URL}/company/login`, {
                 method: "POST",
@@ -41,11 +46,31 @@ export default function LoginPage() {
             });
 
             if (!res.ok) {
-                // if you return 401 on bad creds:
+                let message = "Unexpected error";
+                try {
+                    const data = await res.json();
+                    if (typeof data?.message === "string" && data.message.trim()) {
+                        message = data.message;
+                    } else if (typeof data?.error === "string" && data.error.trim()) {
+                        message = data.error;
+                    }
+                } catch (err) {
+                    // ignore parse errors
+                }
+
+                const requiresVerification =
+                    res.status === 403 || /verify|verifieer|not verified|unverified/i.test(message);
+
+                if (requiresVerification) {
+                    setNeedsVerification(true);
+                    throw new Error(message || "Je e-mailadres is nog niet bevestigd.");
+                }
+
                 if (res.status === 401) {
                     throw new Error("Invalid email or password");
                 }
-                throw new Error("Unexpected error");
+
+                throw new Error(message || "Unexpected error");
             }
 
             const { token } = await res.json();
@@ -57,6 +82,43 @@ export default function LoginPage() {
             setError(err.message || "Login failed");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!formData.email.trim()) {
+            setError("Vul je e-mailadres in om de verificatiemail opnieuw te sturen.");
+            return;
+        }
+
+        try {
+            setResendLoading(true);
+            setError("");
+            setResendMessage("");
+            const response = await fetch(`${BACKEND_URL}/email/verification/resend`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: formData.email.trim().toLowerCase() }),
+            });
+
+            if (!response.ok) {
+                let message = "Kon de verificatiemail niet versturen.";
+                try {
+                    const data = await response.json();
+                    if (typeof data?.message === "string" && data.message.trim()) {
+                        message = data.message;
+                    }
+                } catch (err) {
+                    // ignore JSON parse errors
+                }
+                throw new Error(message);
+            }
+
+            setResendMessage("Als dit e-mailadres bestaat, is er een nieuwe verificatiemail verstuurd.");
+        } catch (err: any) {
+            setError(err?.message || "Versturen mislukt.");
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -147,11 +209,44 @@ export default function LoginPage() {
                             </div>
 
                             {/* Error Alert */}
-                            {error && (
+                            {error && !needsVerification && (
                                 <Alert className="border-red-200 bg-red-50">
                                     <AlertCircle className="h-4 w-4 text-red-600" />
                                     <AlertDescription className="text-red-700">{error}</AlertDescription>
                                 </Alert>
+                            )}
+
+                            {needsVerification && (
+                                <div className="space-y-2">
+                                    <Alert className="border-yellow-200 bg-yellow-50">
+                                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                        <AlertDescription className="text-yellow-800">
+                                            Je e-mailadres is nog niet bevestigd. Stuur de verificatiemail opnieuw.
+                                        </AlertDescription>
+                                    </Alert>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full h-11"
+                                        onClick={handleResendVerification}
+                                        disabled={resendLoading}
+                                    >
+                                        {resendLoading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Mail opnieuw sturen...
+                                            </>
+                                        ) : (
+                                            "Verificatiemail opnieuw sturen"
+                                        )}
+                                    </Button>
+                                    {resendMessage && (
+                                        <Alert className="border-green-200 bg-green-50">
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                            <AlertDescription className="text-green-700">{resendMessage}</AlertDescription>
+                                        </Alert>
+                                    )}
+                                </div>
                             )}
 
                             {/* Success Alert */}
