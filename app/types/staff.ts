@@ -7,7 +7,6 @@ export interface NewStaffMemberForm {
     availability: UIAvailability
     googleCalendarId: string | null
     googleCalendarSummary: string | null
-    phorestStaffId: string | null
 }
 
 export interface StaffDraft extends NewStaffMemberForm {

@@ -11,6 +11,8 @@ export interface Integration {
     logo: string
     status: "connected" | "disconnected" | "error"
     lastSync: string | null
+    connectUrl: string
+    connectMethod: "GET" | "POST"
 }
 
 export interface VoiceSettings {

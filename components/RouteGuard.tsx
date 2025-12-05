@@ -20,7 +20,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({
     const [authorized, setAuthorized] = useState(false)
 
     // Public routes that don't require authentication
-    const publicPaths = ['/login', '/register', '/forgot-password', '/create-account']
+    const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/create-account']
     const onboardingPaths = ['/onboarding', '/onboarding/company-setup']
 
     useEffect(() => {

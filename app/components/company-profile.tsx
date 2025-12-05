@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, useEffect, useCallback, useRef, ReactNode} from "react"
+import { useState, useEffect, useCallback, useRef, ReactNode } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import {InfoTooltip} from "@/components/info-tooltip";
 import {cn} from "@/lib/utils";
 
 // Types
-type DayKey =
+export type DayKey =
     | "maandag"
     | "dinsdag"
     | "woensdag"
@@ -33,7 +33,7 @@ interface DaySchedule {
   closeTime: string
 }
 
-interface OperatingDays extends Record<DayKey, DaySchedule> {
+export interface OperatingDays extends Record<DayKey, DaySchedule> {
   maandag: DaySchedule
   dinsdag: DaySchedule
   woensdag: DaySchedule
@@ -44,7 +44,7 @@ interface OperatingDays extends Record<DayKey, DaySchedule> {
 }
 
 
-interface CompanyData {
+export interface CompanyData {
   name: string
   industry: string
   size: string
@@ -65,12 +65,19 @@ interface CustomInfoField {
 
 interface CompanyProfileProps {
   onDirtyChange?: (dirty: boolean) => void
+  prefillData?: CompanyProfilePrefill
+  onSaveReady?: (save: () => Promise<boolean>) => void
+  showSaveButton?: boolean
 }
 
 interface InfoTooltipProps {
   label: string
   content: ReactNode
   iconClassName?: string
+}
+
+export interface CompanyProfilePrefill extends Partial<CompanyData> {
+  operatingDays?: Partial<OperatingDays>
 }
 
 const InfoTooltipComponent = ({ label, content, iconClassName }: InfoTooltipProps) => (
@@ -90,26 +97,33 @@ const InfoTooltipComponent = ({ label, content, iconClassName }: InfoTooltipProp
   </Tooltip>
 )
 
-export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
+const DEFAULT_OPERATING_DAYS: OperatingDays = {
+  maandag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  dinsdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  woensdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  donderdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  vrijdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
+  zaterdag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+  zondag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
+}
+
+const cloneOperatingDays = (): OperatingDays => JSON.parse(JSON.stringify(DEFAULT_OPERATING_DAYS))
+
+const isDefaultOperatingDays = (operatingDays: OperatingDays) =>
+  JSON.stringify(operatingDays) === JSON.stringify(DEFAULT_OPERATING_DAYS)
+
+export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSaveButton = true }: CompanyProfileProps) {
   const [companyData, setCompanyData] = useState<CompanyData>({
     name: "",
     industry: "Technology",
-    size: "100-500",
+    size: "1-10",
     website: "",
     phone: "",
     email: "",
     address: "",
     description: "",
     founded: "",
-    operatingDays: {
-      maandag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
-      dinsdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
-      woensdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
-      donderdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
-      vrijdag: { isOpen: true, openTime: "09:00", closeTime: "17:00" },
-      zaterdag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
-      zondag: { isOpen: false, openTime: "09:00", closeTime: "17:00" },
-    },
+    operatingDays: cloneOperatingDays(),
   })
 
   const [customInfo, setCustomInfo] = useState<CustomInfoField[]>([{ id: "1", value: "" }])
@@ -119,6 +133,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const initialLoadCompleteRef = useRef(false);
   const isSavingRef = useRef(false);
+  const lastPrefillRef = useRef<string | null>(null);
 
   const handleCompanyDataChange = useCallback((updater: (prev: CompanyData) => CompanyData) => {
     setCompanyData(prev => {
@@ -141,6 +156,51 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
     })
   }, [])
 
+  useEffect(() => {
+    if (!prefillData) return
+
+    const serialized = JSON.stringify(prefillData)
+    if (serialized === lastPrefillRef.current) return
+    lastPrefillRef.current = serialized
+
+    setCompanyData((prev) => {
+      let changed = false
+      const next: CompanyData = { ...prev }
+
+      const applyIfEmpty = (key: keyof CompanyProfilePrefill & keyof CompanyData) => {
+        const value = prefillData[key]
+        if (!value) return
+        const currentValue = prev[key]
+        if (typeof currentValue === "string") {
+          if (currentValue.trim()) return
+          next[key] = value as any
+          changed = true
+        }
+      }
+
+      applyIfEmpty("name")
+      applyIfEmpty("website")
+      applyIfEmpty("phone")
+      applyIfEmpty("address")
+      applyIfEmpty("description")
+      applyIfEmpty("email")
+
+      if (prefillData.operatingDays && isDefaultOperatingDays(prev.operatingDays)) {
+        next.operatingDays = {
+          ...prev.operatingDays,
+          ...prefillData.operatingDays,
+        } as OperatingDays
+        changed = true
+      }
+
+      return changed ? next : prev
+    })
+
+    if (initialLoadCompleteRef.current && !isSavingRef.current) {
+      setIsDirty(true)
+    }
+  }, [prefillData])
+
   // Load data from backend
   useEffect(() => {
     const token = localStorage.getItem("jwt")
@@ -157,31 +217,31 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         // Load company details
         const detRes = await fetch(`${BACKEND_URL}/company/details`, { headers })
         if (detRes.ok) {
-          const det = await detRes.json()
+        const det = await detRes.json()
+        setCompanyData(prev => ({
+          ...prev,
+          name: det.name || prev.name,
+          industry: det.industry || prev.industry || "Technology",
+          size: det.size?.toString() || prev.size || "1-10",
+          description: det.description || prev.description,
+          founded: det.foundedYear?.toString() || prev.founded,
+        }))
+      }
+
+      // Load company contacts
+      const contactRes = await fetch(`${BACKEND_URL}/company/contact`, { headers })
+      if (contactRes.ok) {
+        const contact = await contactRes.json()
+        if (contact) {
           setCompanyData(prev => ({
             ...prev,
-            name: det.name || "",
-            industry: det.industry || "Technology",
-            size: det.size?.toString() || "100-500",
-            description: det.description || "",
-            founded: det.foundedYear?.toString() || "",
+            website: contact.website || prev.website,
+            phone: contact.phone || prev.phone,
+            email: contact.contact_email || prev.email,
+            address: contact.address || prev.address,
           }))
         }
-
-        // Load company contacts
-        const contactRes = await fetch(`${BACKEND_URL}/company/contact`, { headers })
-        if (contactRes.ok) {
-          const contact = await contactRes.json()
-          if (contact) {
-            setCompanyData(prev => ({
-              ...prev,
-              website: contact.website || "",
-              phone: contact.phone || "",
-              email: contact.contact_email || "",
-              address: contact.address || "",
-            }))
-          }
-        }
+      }
 
         // Load operating hours
         const hrRes = await fetch(`${BACKEND_URL}/company/hours`, { headers })
@@ -292,19 +352,19 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
     return errors
   }, [])
 
-  const saveData = useCallback(async () => {
+  const saveData = useCallback(async (): Promise<boolean> => {
     const token = localStorage.getItem("jwt");
-    if (!token) return;
+    if (!token) return false;
 
     if (!isDirty) {
-      return;
+      return true;
     }
 
     const errors = validateCompanyData(companyData)
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors)
       setSaveStatus("error")
-      return
+      return false
     }
 
     isSavingRef.current = true;
@@ -432,9 +492,11 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
       setValidationErrors({})
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
+      return true
     } catch (err) {
       console.error("Save error", err);
       setSaveStatus("error");
+      return false
     } finally {
       isSavingRef.current = false;
     }
@@ -443,6 +505,10 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
   useEffect(() => {
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
+
+  useEffect(() => {
+    onSaveReady?.(() => saveData())
+  }, [onSaveReady, saveData])
 
   const handleCustomInfoChange = (id: string, value: string) => {
     setCustomInfo((prev) => {
@@ -556,23 +622,25 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
 
   return (
       <TooltipProvider delayDuration={0}>
-        <div className="space-y-6">
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <div>
+          <div className="space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <div>
             <h2 className="text-2xl font-bold text-[#081245]">Bedrijf profiel</h2>
-            <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen. Klik op "Opslaan" om je updates te bewaren.</p>
+              <p className="text-gray-600">Veranderingen worden niet automatisch opgeslagen.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {getSaveStatusBadge()}
+              {showSaveButton && (
+                <Button
+                  size="sm"
+                  onClick={() => void saveData()}
+                  disabled={saveStatus === "saving" || !isDirty}
+                >
+                  {saveStatus === "saving" ? "Opslaan..." : "Opslaan"}
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {getSaveStatusBadge()}
-            <Button
-                onClick={() => void saveData()}
-                disabled={saveStatus === "saving" || !isDirty}
-                className="bg-[#0ea5e9] text-white hover:text-white hover:bg-[#0ca5e9]/70"
-            >
-              {saveStatus === "saving" ? "Opslaan…" : "Opslaan"}
-            </Button>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Company Overview */}
@@ -626,7 +694,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                       })}
                   >
                     <SelectTrigger className="mt-1">
-                      <SelectValue />
+                      <SelectValue placeholder="Selecteer je branch..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Technologie">Technologie</SelectItem>
@@ -1062,7 +1130,7 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
                           .filter((field) => field.value.trim() !== "")
                           .map((field, index) => (
                               <div key={field.id} className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                • {field.value}
+                                - {field.value}
                               </div>
                           ))}
                     </div>
@@ -1076,14 +1144,14 @@ export function CompanyProfile({ onDirtyChange }: CompanyProfileProps) {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-[#081245]">💡 Tips voor betere prestaties van je AI-assistent:</h3>
+              <h3 className="text-sm font-medium text-[#081245]">Tips voor betere prestaties van je AI-assistent:</h3>
               <ul className="text-xs text-blue-700 space-y-1 ml-4">
-                <li>• Vermeld de unieke waardepropositie van je bedrijf</li>
-                <li>• Noem belangrijke prestaties of mijlpalen</li>
-                <li>• Geef informatie over je doelgroep</li>
-                <li>• Vermeld eventuele prijzen of certificeringen</li>
-                <li>• Beschrijf de bedrijfscultuur of kernwaarden</li>
-                <li>• Voeg details toe over je producten of diensten</li>
+                <li>- Vermeld de unieke waardepropositie van je bedrijf</li>
+                <li>- Noem belangrijke prestaties of mijlpalen</li>
+                <li>- Geef informatie over je doelgroep</li>
+                <li>- Vermeld eventuele prijzen of certificeringen</li>
+                <li>- Beschrijf de bedrijfscultuur of kernwaarden</li>
+                <li>- Voeg details toe over je producten of diensten</li>
               </ul>
             </div>
           </CardContent>
