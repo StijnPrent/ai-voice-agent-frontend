@@ -1,16 +1,15 @@
 "use client"
 
-import { Dispatch, SetStateAction, useMemo } from "react"
+import { Dispatch, SetStateAction } from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardHeader, CardTitle, CardDescription} from "@/components/ui/card"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Badge} from "@/components/ui/badge"
-import {Plus, User, Edit, Trash2, Sparkles, Sun, Moon, Copy, Eraser, Link2} from "lucide-react"
+import {Plus, User, Edit, Trash2, Sparkles, Sun, Moon, Copy, Eraser} from "lucide-react"
 import type { GoogleCalendar, UIAvailability, UIStaffMember, UITimeBlock } from "@/lib/schedulingApi"
 import type { NewStaffMemberForm, StaffDraft } from "@/app/types/staff"
-import type { PhorestStaffMember } from "@/lib/api-config"
 
 type DayKey = keyof UIAvailability
 
@@ -36,10 +35,6 @@ interface StaffMembersTabProps {
     calendarDisplayLabel: (calendar?: Pick<GoogleCalendar, "displayName" | "summary" | "summaryOverride" | "id"> | null) => string | null;
     isActiveFromAvailability: (availability: UIAvailability) => boolean;
     applyAvailabilityTemplate: (template: "weekday" | "weekend" | "copy" | "clear") => void;
-    phorestConnected: boolean;
-    phorestStaff: PhorestStaffMember[];
-    phorestLoading: boolean;
-    phorestLinkingStaffId: string | null;
 }
 
 export default function StaffMembersTab({
@@ -64,25 +59,8 @@ export default function StaffMembersTab({
     calendarDisplayLabel,
     isActiveFromAvailability,
     applyAvailabilityTemplate,
-    phorestConnected,
-    phorestStaff,
-    phorestLoading,
-    phorestLinkingStaffId,
 }: StaffMembersTabProps) {
     const hasCalendars = calendars.length > 0
-    const canUseGoogleCalendars = hasCalendars && !phorestConnected
-    const phorestOptions = useMemo(
-        () =>
-            [...phorestStaff].sort((a, b) =>
-                (a.displayName ?? a.name ?? a.id).localeCompare(b.displayName ?? b.name ?? b.id)
-            ),
-        [phorestStaff]
-    )
-    const phorestLabel = (phorestId?: string | null) => {
-        if (!phorestId) return null
-        const match = phorestOptions.find(option => option.id === phorestId)
-        return match?.displayName ?? match?.name ?? phorestId
-    }
     return (
         <>
             <Card className="border-slate-200 shadow-xl">
@@ -176,7 +154,7 @@ export default function StaffMembersTab({
                                         onChange={e => setNewStaffMember({ ...newStaffMember, specialties: e.target.value })}
                                     />
                                 </div>
-                                {canUseGoogleCalendars ? (
+                                {hasCalendars && (
                                     <div className="space-y-2">
                                         <Label className="text-base font-medium">Google Calendar</Label>
                                         <Select
@@ -210,48 +188,6 @@ export default function StaffMembersTab({
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                    </div>
-                                ) : hasCalendars ? (
-                                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800">
-                                        Google Calendar koppelingen zijn gedeactiveerd omdat Phorest actief is.
-                                    </div>
-                                ) : null}
-                                {phorestConnected && (
-                                    <div className="space-y-2">
-                                        <Label className="text-base font-medium">Phorest medewerker</Label>
-                                        <Select
-                                            value={newStaffMember.phorestStaffId ?? "__none__"}
-                                            onValueChange={value => {
-                                                if (value === "__none__") {
-                                                    setNewStaffMember(prev => ({ ...prev, phorestStaffId: null }))
-                                                    return
-                                                }
-                                                setNewStaffMember(prev => ({ ...prev, phorestStaffId: value }))
-                                            }}
-                                            disabled={phorestLoading || phorestOptions.length === 0}
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Link een Phorest medewerker" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="__none__">Geen koppeling</SelectItem>
-                                                {phorestOptions.length === 0 && (
-                                                    <SelectItem value="__unavailable" disabled>
-                                                        Geen Phorest medewerkers gevonden
-                                                    </SelectItem>
-                                                )}
-                                                {phorestOptions.map(option => (
-                                                    <SelectItem key={option.id} value={option.id}>
-                                                        {option.displayName ?? option.name ?? option.id}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-slate-500">
-                                            {phorestLoading
-                                                ? "Bezig met ophalen van Phorest medewerkers..."
-                                                : "Selecteer wie we moeten synchroniseren met deze medewerker."}
-                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -334,9 +270,6 @@ export default function StaffMembersTab({
                                 s.googleCalendarSummary ??
                                 s.googleCalendarId ??
                                 "Geen koppeling";
-                            const phorestDisplay =
-                                phorestLabel(s.phorestStaffId ?? null) ??
-                                (s.phorestStaffId ?? "Geen koppeling");
                             return (
                                 <Card key={s.id} className="transition hover:border-sky-200 hover:shadow-md">
                                     <CardContent className="p-4">
@@ -354,7 +287,7 @@ export default function StaffMembersTab({
                                                     value={staffDraft.specialties}
                                                     onChange={e => setStaffDraft({ ...staffDraft, specialties: e.target.value })}
                                                 />
-                                                {canUseGoogleCalendars ? (
+                                                {hasCalendars && (
                                                     <div>
                                                         <Label className="text-sm font-medium">Google Calendar</Label>
                                                         <Select
@@ -390,54 +323,6 @@ export default function StaffMembersTab({
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
-                                                    </div>
-                                                ) : hasCalendars ? (
-                                                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800">
-                                                        Google Calendar is uitgeschakeld zolang Phorest actief is.
-                                                    </div>
-                                                ) : null}
-                                                {phorestConnected && (
-                                                    <div>
-                                                        <Label className="text-sm font-medium">Phorest medewerker</Label>
-                                                        <Select
-                                                            value={staffDraft.phorestStaffId ?? "__none__"}
-                                                            onValueChange={value => {
-                                                                setStaffDraft(prev => {
-                                                                    if (!prev) return prev
-                                                                    if (value === "__none__") {
-                                                                        return {
-                                                                            ...prev,
-                                                                            phorestStaffId: null,
-                                                                        }
-                                                                    }
-                                                                    return {
-                                                                        ...prev,
-                                                                        phorestStaffId: value,
-                                                                    }
-                                                                })
-                                                            }}
-                                                            disabled={phorestLoading || phorestOptions.length === 0}
-                                                        >
-                                                            <SelectTrigger className="w-full">
-                                                                <SelectValue placeholder="Kies een Phorest medewerker" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="__none__">Geen koppeling</SelectItem>
-                                                                {phorestOptions.length === 0 && (
-                                                                    <SelectItem value="__unavailable" disabled>
-                                                                        Geen Phorest medewerkers gevonden
-                                                                    </SelectItem>
-                                                                )}
-                                                                {phorestOptions.map(option => (
-                                                                    <SelectItem key={option.id} value={option.id}>
-                                                                        {option.displayName ?? option.name ?? option.id}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <p className="text-xs text-slate-500 mt-1">
-                                                            Koppel aan een Phorest medewerker om automatische sync te activeren.
-                                                        </p>
                                                     </div>
                                                 )}
 
@@ -487,9 +372,8 @@ export default function StaffMembersTab({
                                                     <Button
                                                         size="sm"
                                                         onClick={handleSaveStaffDraft}
-                                                        disabled={phorestLinkingStaffId === staffDraft.id}
                                                     >
-                                                        {phorestLinkingStaffId === staffDraft.id ? "Opslaan..." : "Opslaan"}
+                                                        Opslaan
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -544,11 +428,6 @@ export default function StaffMembersTab({
                                                     <div className="text-xs text-gray-600">
                                                         <span className="font-semibold text-gray-700 mr-1">Google Calendar:</span>
                                                         {calendarLabel}
-                                                    </div>
-                                                    <div className="text-xs text-gray-600 flex items-center gap-1">
-                                                        <Link2 className="h-3 w-3 text-slate-500" />
-                                                        <span className="font-semibold text-gray-700">Phorest:</span>
-                                                        <span>{phorestDisplay}</span>
                                                     </div>
 
                                                     {/* Availability Display */}

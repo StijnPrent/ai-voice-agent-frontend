@@ -2,6 +2,13 @@ import type {Metadata} from 'next'
 import './globals.css'
 import RouteGuard from "@/components/RouteGuard";
 import {Toaster} from "@/components/ui/toaster";
+import { Outfit } from "next/font/google";
+
+const outfit = Outfit({
+    subsets: ["latin"],
+    weight: ["600", "700"],
+    variable: "--font-outfit",
+})
 
 export const metadata: Metadata = {
     title: 'Callingbird - Dashboard',
@@ -14,7 +21,7 @@ export default function RootLayout({
     children: React.ReactNode
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" className={outfit.variable}>
         <body>
         <RouteGuard>
             {children}

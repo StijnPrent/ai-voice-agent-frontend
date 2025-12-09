@@ -46,7 +46,6 @@ export interface UIStaffMember {
     availability: UIAvailability;
     googleCalendarId: string | null;
     googleCalendarSummary: string | null;
-    phorestStaffId?: string | null;
     // no isActive on model; compute as: Object.values(availability).some(d => d.isWorking)
 }
 
@@ -91,7 +90,6 @@ type StaffDTO = {
     role: string;
     googleCalendarId?: string | null;
     googleCalendarSummary?: string | null;
-    phorestStaffId?: string | null;
     specialties: { id?: number; name: string }[];
     availability: StaffAvailabilityDTO[];
     createdAt?: string;
@@ -132,7 +130,6 @@ export function staffFromDTO(d: StaffDTO): UIStaffMember {
         availability: avail,
         googleCalendarId: d.googleCalendarId ?? null,
         googleCalendarSummary: d.googleCalendarSummary ?? null,
-        phorestStaffId: d.phorestStaffId ?? null,
     };
 }
 
@@ -145,7 +142,6 @@ export function staffToDTO(u: Partial<UIStaffMember>): Partial<StaffDTO> {
         availability: [],
         googleCalendarId: u.googleCalendarId ?? null,
         googleCalendarSummary: u.googleCalendarSummary ?? null,
-        phorestStaffId: u.phorestStaffId ?? null,
     };
 
     if (u.availability) {
@@ -336,7 +332,6 @@ export async function addStaffMember(payload: Partial<UIStaffMember>): Promise<U
             availability: staffToDTO(payload).availability, // array
             googleCalendarId: payload.googleCalendarId ?? null,
             googleCalendarSummary: payload.googleCalendarSummary ?? null,
-            phorestStaffId: payload.phorestStaffId ?? null,
         }),
     });
     if (!res.ok) throw new Error("Failed to add staff member");
@@ -356,7 +351,6 @@ export async function updateStaffMember(payload: Partial<UIStaffMember>): Promis
             availability: staffToDTO(payload).availability, // array
             googleCalendarId: payload.googleCalendarId ?? null,
             googleCalendarSummary: payload.googleCalendarSummary ?? null,
-            phorestStaffId: payload.phorestStaffId ?? null,
         }),
     });
     if (!res.ok) throw new Error("Failed to update staff member");

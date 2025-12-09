@@ -9,10 +9,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
   CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Calendar, PhoneCall,
-  ArrowUpRight, ArrowDownRight, Minus, AlertTriangle
+  ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShoppingBag
 } from "lucide-react"
 import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
+import { ProductGuides } from "./components/product-guides"
 import { VoiceAgentSettings }    from "./components/voice-agent-settings"
 import { CallTranscripts }        from "./components/call-transcripts"
 import { BACKEND_URL } from "@/lib/api"
@@ -23,6 +24,8 @@ import type { Update } from "@/lib/types/types"
 import OverviewSkeleton from "@/components/skeletons/OverviewSkeleton";
 import Appointments from "@/app/components/appointments";
 import Image from "next/image";
+
+type CompanyType = "appointments" | "ecommerce" | "both"
 
 type StatIdentifier = "avgDuration" | "totalDuration" | "callVolume"
 type StatTrend = "up" | "down" | "flat"
@@ -243,10 +246,21 @@ export default function Dashboard() {
   const searchParams  = useSearchParams()
   const initialTab    = searchParams.get('tab') ?? 'overview'
   const [activeTab, setActiveTab] = useState<string>(initialTab)
+  const [companyType, setCompanyType] = useState<CompanyType>("both")
   const [tabUnsaved, setTabUnsaved] = useState<Record<string, boolean>>({})
   const [overviewStats, setOverviewStats] = useState<OverviewStat[]>(PLACEHOLDER_STATS)
   const [statsLoading, setStatsLoading] = useState<boolean>(true)
   const [statsError, setStatsError] = useState<string | null>(null)
+  const showAppointments = companyType === "appointments" || companyType === "both"
+  const showEcommerce = companyType === "ecommerce" || companyType === "both"
+  const visibleTabs = [
+    { id: "overview", label: "Overzicht", icon: BarChart3 },
+    { id: "company", label: "Bedrijf", icon: Building2 },
+    showAppointments ? { id: "appointments", label: "Afspraken", icon: Calendar } : null,
+    { id: "integrations", label: "Integraties", icon: Plug },
+    { id: "voice-agent", label: "Stem instellingen", icon: Phone },
+    { id: "calls", label: "Gesprekken", icon: PhoneCall },
+  ].filter(Boolean) as { id: string; label: string; icon: any }[]
 
   const attemptTabChange = useCallback((nextTab: string) => {
     if (nextTab === activeTab) return
@@ -321,6 +335,56 @@ export default function Dashboard() {
       setAssistantSaving(false)
     }
   }
+
+  const applyCompanyType = useCallback((value: string | null | undefined) => {
+    const normalized = (value || "").toLowerCase()
+    if (normalized === "appointments" || normalized === "ecommerce" || normalized === "both") {
+      setCompanyType(normalized)
+      try {
+        localStorage.setItem("companyType", normalized)
+        document.documentElement.dataset.companyType = normalized
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("companyType")
+      const dataset = document.documentElement.dataset.companyType
+      applyCompanyType(stored || dataset)
+    } catch {
+      /* ignore */
+    }
+  }, [applyCompanyType])
+
+  useEffect(() => {
+    async function fetchCompanyType() {
+      try {
+        const token = localStorage.getItem("jwt")
+        if (!token) return
+        const res = await fetch(`${BACKEND_URL}/company/details`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const details = await res.json().catch(() => null)
+        if (details?.useType) {
+          applyCompanyType(details.useType)
+        }
+      } catch (err) {
+        console.warn("Failed to load company type", err)
+      }
+    }
+    fetchCompanyType()
+  }, [applyCompanyType])
+
+  useEffect(() => {
+    const allowedIds = visibleTabs.map((t) => t.id)
+    if (!allowedIds.includes(activeTab)) {
+      setActiveTab(allowedIds[0] ?? "overview")
+    }
+  }, [activeTab, visibleTabs])
 
   // 1) Fetch updates on mount
   useEffect(() => {
@@ -431,7 +495,7 @@ export default function Dashboard() {
               </Badge>
               {/* Voice Assistant Toggle */}
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">AI Assitent</span>
+                <span className="text-sm text-gray-600">AI Assistent</span>
                 <Switch
                   checked={assistantEnabled}
                   disabled={assistantSaving}
@@ -447,13 +511,16 @@ export default function Dashboard() {
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={attemptTabChange} className="space-y-6">
-            <TabsList className="grid grid-cols-6">
-              <TabsTrigger value="overview"><BarChart3 className="h-4 w-4 mr-1" />Overzicht</TabsTrigger>
-              <TabsTrigger value="company" ><Building2 className="h-4 w-4 mr-1" />Bedrijf</TabsTrigger>
-              <TabsTrigger value="appointments"><Calendar className="h-4 w-4 mr-1" />Afspraken</TabsTrigger>
-              <TabsTrigger value="integrations"><Plug className="h-4 w-4 mr-1" />Integraties</TabsTrigger>
-              <TabsTrigger value="voice-agent"><Phone className="h-4 w-4 mr-1" />Stem instellingen</TabsTrigger>
-              <TabsTrigger value="calls"><PhoneCall className="h-4 w-4 mr-1" />Gesprekken</TabsTrigger>
+            <TabsList
+              className="grid w-full"
+              style={{ gridTemplateColumns: `repeat(${visibleTabs.length || 1}, minmax(0,1fr))` }}
+            >
+              {visibleTabs.map(({ id, label, icon: Icon }) => (
+                <TabsTrigger key={id} value={id} className="flex items-center justify-center space-x-1">
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             {/* Overview Panel */}
@@ -550,13 +617,15 @@ export default function Dashboard() {
               <CompanyProfile onDirtyChange={(dirty) => handleTabDirtyChange("company", dirty)} />
             </TabsContent>
 
-            <TabsContent value="appointments">
-              <Appointments onDirtyChange={(dirty) => handleTabDirtyChange("appointments", dirty)} />
-            </TabsContent>
+            {showAppointments && (
+              <TabsContent value="appointments">
+                <Appointments onDirtyChange={(dirty) => handleTabDirtyChange("appointments", dirty)} />
+              </TabsContent>
+            )}
 
             {/* Integrations Panel */}
             <TabsContent value="integrations">
-              <IntegrationsManager />
+              <IntegrationsManager mode="integrations" />
             </TabsContent>
 
             {/* Voice Agent Panel */}

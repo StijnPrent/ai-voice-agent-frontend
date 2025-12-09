@@ -1,6 +1,6 @@
 "use client"
 
-import {useCallback, useEffect, useMemo, useRef, useState} from "react"
+import {useEffect, useMemo, useRef, useState} from "react"
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {CalendarArrowUp, Users} from "lucide-react"
@@ -21,11 +21,6 @@ import {
     getAppointmentCategories,
     emptyWeek,
 } from "@/lib/schedulingApi"
-import {
-    fetchPhorestStaff,
-    linkPhorestStaffMember,
-    type PhorestStaffMember,
-} from "@/lib/api-config"
 import type { AppointmentPreset } from "@/app/types/appointments"
 import type { NewStaffMemberForm, StaffDraft } from "@/app/types/staff"
 import type {
@@ -57,11 +52,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     const [appointmentCategories, setAppointmentCategories] = useState<AppointmentCategory[]>([])
     const [staffMembers, setStaffMembers] = useState<UIStaffMember[]>([])
     const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
-    const [phorestStaff, setPhorestStaff] = useState<PhorestStaffMember[]>([])
-    const [phorestConnected, setPhorestConnected] = useState(false)
-    const [phorestLoading, setPhorestLoading] = useState(false)
-    const [phorestError, setPhorestError] = useState<string | null>(null)
-    const [phorestLinkingStaffId, setPhorestLinkingStaffId] = useState<string | null>(null)
 
     const [newAppointmentType, setNewAppointmentType] = useState<AppointmentTypeForm>({
         name: "",
@@ -91,7 +81,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         availability: emptyWeek(),
         googleCalendarId: null,
         googleCalendarSummary: null,
-        phorestStaffId: null,
     })
     const [creatingStaff, setCreatingStaff] = useState(false)
     const [staffFieldTouched, setStaffFieldTouched] = useState<{ name: boolean; role: boolean }>({ name: false, role: false })
@@ -105,22 +94,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     const [error, setError] = useState<string | null>(null)
 
     const hasCalendars = calendars.length > 0
-
-    const refreshPhorestStaff = useCallback(async () => {
-        setPhorestLoading(true)
-        try {
-            const { connected, staff } = await fetchPhorestStaff()
-            setPhorestConnected(connected)
-            setPhorestStaff(staff)
-        } catch (err: any) {
-            console.warn("Failed to load Phorest staff", err)
-            setPhorestConnected(false)
-            setPhorestStaff([])
-            setPhorestError(err?.message ?? "Phorest laden mislukt")
-        } finally {
-            setPhorestLoading(false)
-        }
-    }, [])
 
     /* ----------------------------- Load ----------------------------- */
     useEffect(() => {
@@ -143,7 +116,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                 setStaffMembers(staff)
                 setCalendars(calendarList)
                 setAppointmentCategories(categoryList)
-                await refreshPhorestStaff()
             } catch (err: any) {
                 setError(err.message || "Failed to load data")
             } finally {
@@ -151,7 +123,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
             }
         }
         load()
-    }, [refreshPhorestStaff])
+    }, [])
 
     useEffect(() => {
         let active = true
@@ -249,28 +221,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         } finally {
             setDeletingAppointment(false)
             setDeleteTarget(null)
-        }
-    }
-
-    const syncPhorestLink = async (
-        staffId: string,
-        nextPhorestStaffId: string | null,
-        previousPhorestStaffId: string | null
-    ) => {
-        if (!phorestConnected) return
-        if ((previousPhorestStaffId ?? null) === (nextPhorestStaffId ?? null)) return
-        try {
-            setPhorestLinkingStaffId(staffId)
-            await linkPhorestStaffMember(staffId, nextPhorestStaffId)
-        } catch (err: any) {
-            const message = err?.message ?? "Phorest koppeling bijwerken mislukt"
-            toast({
-                title: "Phorest koppeling",
-                description: message,
-                variant: "destructive",
-            })
-        } finally {
-            setPhorestLinkingStaffId(current => (current === staffId ? null : current))
         }
     }
 
@@ -515,21 +465,14 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         }
         try {
             setCreatingStaff(true)
-            const googleCalendarId = phorestConnected ? null : newStaffMember.googleCalendarId
-            const googleCalendarSummary = phorestConnected ? null : newStaffMember.googleCalendarSummary
-            const phorestStaffId = phorestConnected ? newStaffMember.phorestStaffId : null
             const created = await addStaffMember({
                 name: newStaffMember.name.trim(),
                 role: newStaffMember.role.trim(),
                 specialties: parseSpecialtyString(newStaffMember.specialties),
                 availability: newStaffMember.availability,
-                googleCalendarId,
-                googleCalendarSummary,
-                phorestStaffId,
+                googleCalendarId: newStaffMember.googleCalendarId,
+                googleCalendarSummary: newStaffMember.googleCalendarSummary,
             })
-            if (phorestConnected && (phorestStaffId ?? null) !== null) {
-                await syncPhorestLink(created.id, phorestStaffId, null)
-            }
             setStaffMembers(prev => [...prev, created])
             lastSavedAvailabilityRef.current = created.availability
             setNewStaffMember({
@@ -539,7 +482,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                 availability: emptyWeek(),
                 googleCalendarId: null,
                 googleCalendarSummary: null,
-                phorestStaffId: null,
             })
             setStaffFieldTouched({ name: false, role: false })
             toast({
@@ -569,7 +511,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
             availability: JSON.parse(JSON.stringify(s.availability)) as UIAvailability, // deep copy
             googleCalendarId: s.googleCalendarId,
             googleCalendarSummary: s.googleCalendarSummary,
-            phorestStaffId: s.phorestStaffId ?? null,
         })
     }
 
@@ -587,25 +528,16 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
     const handleSaveStaffDraft = async () => {
         if (!staffDraft?.id) return
         const draftSnapshot = staffDraft
-        const previousStaff = staffMembers.find(s => s.id === draftSnapshot.id) ?? null
         try {
-            const googleCalendarId = phorestConnected ? null : draftSnapshot.googleCalendarId
-            const googleCalendarSummary = phorestConnected ? null : draftSnapshot.googleCalendarSummary
             const updated = await updateStaffMember({
                 id: draftSnapshot.id,
                 name: draftSnapshot.name,
                 role: draftSnapshot.role,
                 specialties: parseSpecialtyString(draftSnapshot.specialties),
                 availability: draftSnapshot.availability,
-                googleCalendarId,
-                googleCalendarSummary,
-                phorestStaffId: draftSnapshot.phorestStaffId ?? null,
+                googleCalendarId: draftSnapshot.googleCalendarId,
+                googleCalendarSummary: draftSnapshot.googleCalendarSummary,
             })
-            await syncPhorestLink(
-                draftSnapshot.id,
-                draftSnapshot.phorestStaffId ?? null,
-                previousStaff?.phorestStaffId ?? null
-            )
             // reflect in UI
             setStaffMembers(prev => prev.map(s =>
                 s.id === draftSnapshot.id ? updated : s
@@ -732,8 +664,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const specialtiesChanged = newStaffMember.specialties.trim() !== ""
         const availabilityChanged = !availabilityIsDefault(newStaffMember.availability)
         const calendarChanged = newStaffMember.googleCalendarId !== null
-        const phorestChanged = newStaffMember.phorestStaffId !== null
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged || phorestChanged
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
     }, [newStaffMember])
 
     const staffDraftChanged = useMemo(() => {
@@ -751,8 +682,7 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
         const calendarChanged =
             (staffDraft.googleCalendarId ?? null) !== (original.googleCalendarId ?? null) ||
             (staffDraft.googleCalendarSummary ?? null) !== (original.googleCalendarSummary ?? null)
-        const phorestChanged = (staffDraft.phorestStaffId ?? null) !== (original.phorestStaffId ?? null)
-        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged || phorestChanged
+        return nameChanged || roleChanged || specialtiesChanged || availabilityChanged || calendarChanged
     }, [staffDraft, staffMembers])
 
     const hasUnsavedChanges = hasNewAppointmentTypeChanges || hasNewStaffChanges || staffDraftChanged
@@ -901,11 +831,6 @@ export default function Appointments({ onDirtyChange }: AppointmentsProps) {
                             isActiveFromAvailability={isActiveFromAvailability}
 
                             applyAvailabilityTemplate={applyAvailabilityTemplate}
-
-                            phorestConnected={phorestConnected}
-                            phorestStaff={phorestStaff}
-                            phorestLoading={phorestLoading}
-                            phorestLinkingStaffId={phorestLinkingStaffId}
 
                         />
 
