@@ -340,9 +340,12 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
 
         // For POST connectors that need payload, open modal unless this call came from the modal
         const lower = integration.name.toLowerCase()
-        const needsShopify = integration.connectMethod === "POST" && lower.includes("shopify")
-        const needsWoo = integration.connectMethod === "POST" && lower.includes("woo")
-        if (!options?.viaModal && (needsShopify || needsWoo)) {
+        const method = (integration.connectMethod || "").toUpperCase()
+        const needsShopify = lower.includes("shopify")
+        const needsWoo = lower.includes("woo")
+        const isGet = method === "GET"
+
+        if (!options?.viaModal && (needsShopify || needsWoo) && !isGet) {
             setModalIntegration(integration)
             setModalError(null)
             return
@@ -352,7 +355,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
             setConnectingId(integration.id)
             const headers: Record<string, string> = { Authorization: `Bearer ${token ?? ""}` }
 
-            if (integration.connectMethod === "GET") {
+            if (isGet) {
                 const res = await fetch(integration.connectUrl, { method: "GET", headers })
                 if (!res.ok) {
                     const text = await res.text().catch(() => "")
@@ -374,7 +377,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
             }
 
             headers["Content-Type"] = "application/json"
-            if (lower.includes("shopify")) {
+            if (needsShopify && !isGet) {
                 const form = shopifyForms[integration.id] ?? { shopDomain: "" }
                 const shopDomain = (form.shopDomain ?? "").trim()
                 if (!shopDomain) {
@@ -402,7 +405,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
                 return
             }
 
-            if (lower.includes("woo")) {
+            if (needsWoo && !isGet) {
                 const form = wooForms[integration.id] ?? {
                     storeUrl: "",
                     consumerKey: "",
@@ -934,7 +937,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
 
                     {modalIntegration && (
                         <>
-                            {modalIntegration.connectMethod === "POST" && modalIntegration.name.toLowerCase().includes("shopify") && (
+                            {modalIntegration.name.toLowerCase().includes("shopify") && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Shopify shop domain</label>
                                     <Input
@@ -950,7 +953,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
                                 </div>
                             )}
 
-                            {modalIntegration.connectMethod === "POST" && modalIntegration.name.toLowerCase().includes("woo") && (
+                            {modalIntegration.name.toLowerCase().includes("woo") && (
                                 <div className="space-y-3">
                                     <div className="space-y-1">
                                         <label className="text-sm font-medium">WooCommerce store URL</label>
