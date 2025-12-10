@@ -110,6 +110,7 @@ export function IntegrationsManager({ mode = "both" }: { mode?: Mode }) {
             })
             if (!res.ok) throw new Error(`Failed to load: ${res.status}`)
             const data: Integration[] = await res.json()
+        console.log("Fetched integrations:", data)
             setIntegrations(data)
             setError(null)
         } catch (err: any) {

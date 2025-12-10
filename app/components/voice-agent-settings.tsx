@@ -1,6 +1,6 @@
 "use client"
 
-import {useCallback, useEffect, useRef, useState} from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,14 +11,14 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mic, Volume2, Brain, MessageSquare, Play, Pause, Settings } from "lucide-react"
-import {VoiceId} from "@/enums/VoiceId";
-import {BACKEND_URL} from "@/lib/api";
-import {ReplyStyle, VoiceSettings} from "@/lib/types/types";
-import {ReplyStyleEnum} from "@/enums/ReplyStyleEnum";
-import {ReplyStyleDescriptionEnum} from "@/enums/ReplyStyleDescriptionEnum";
+import { VoiceId } from "@/enums/VoiceId";
+import { BACKEND_URL } from "@/lib/api";
+import { ReplyStyle, VoiceSettings } from "@/lib/types/types";
+import { ReplyStyleEnum } from "@/enums/ReplyStyleEnum";
+import { ReplyStyleDescriptionEnum } from "@/enums/ReplyStyleDescriptionEnum";
 import VoiceAgentSkeleton from "@/components/skeletons/VoiceAgentSkeleton";
-import {TooltipProvider} from "@/components/ui/tooltip";
-import {InfoTooltip} from "@/components/info-tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { InfoTooltip } from "@/components/info-tooltip";
 
 interface VoiceAgentSettingsProps {
   onDirtyChange?: (dirty: boolean) => void
@@ -51,6 +51,8 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const initialLoadCompleteRef = useRef(false)
   const isSavingRef = useRef(false)
+  const [customInstruction, setCustomInstruction] = useState("")
+  const [customInstructionId, setCustomInstructionId] = useState<number | null>(null)
 
   const [agentSettings, setAgentSettings] = useState<ReplyStyle>(defaultReplyStyle)
 
@@ -81,9 +83,9 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
   const replyStyleDescriptions: Record<ReplyStyleEnum, string> = {
     [ReplyStyleEnum.Professional]: ReplyStyleDescriptionEnum.Professional,
-    [ReplyStyleEnum.Casual]:       ReplyStyleDescriptionEnum.Casual,
-    [ReplyStyleEnum.Empathetic]:   ReplyStyleDescriptionEnum.Empathetic,
-    [ReplyStyleEnum.Humorous]:     ReplyStyleDescriptionEnum.Humorous,
+    [ReplyStyleEnum.Casual]: ReplyStyleDescriptionEnum.Casual,
+    [ReplyStyleEnum.Empathetic]: ReplyStyleDescriptionEnum.Empathetic,
+    [ReplyStyleEnum.Humorous]: ReplyStyleDescriptionEnum.Humorous,
   }
 
   const personalities = Object.values(ReplyStyleEnum).map((id) => ({
@@ -155,13 +157,16 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     async function fetchAllSettings() {
       try {
         const token = localStorage.getItem("jwt")
-        const [voiceRes, replyRes] = await Promise.all([
+        const [voiceRes, replyRes, instrRes] = await Promise.all([
           fetch(`${BACKEND_URL}/voice-settings/settings`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`${BACKEND_URL}/voice-settings/reply-style`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`${BACKEND_URL}/custom-instructions`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null),
         ])
 
         if (!voiceRes.ok) {
@@ -173,12 +178,24 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
         const dataVoice: VoiceSettings = await voiceRes.json()
         const dataReply: ReplyStyle = await replyRes.json()
+        let instructionText = ""
+        let instructionId: number | null = null
+        if (instrRes && instrRes.ok) {
+          const instrData = await instrRes.json().catch(() => [])
+          if (Array.isArray(instrData) && instrData.length > 0) {
+            const first = instrData[0]
+            instructionText = first?.instruction ?? ""
+            instructionId = typeof first?.id === "number" ? first.id : null
+          }
+        }
 
         setVoiceSettings(dataVoice)
         setAgentSettings({
           ...dataReply,
           description: replyStyleDescriptions[dataReply.name as ReplyStyleEnum],
         })
+        setCustomInstruction(instructionText)
+        setCustomInstructionId(instructionId)
       } catch (err: any) {
         setError(err.message || "Error fetching voice or reply-style settings")
       } finally {
@@ -203,7 +220,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     isSavingRef.current = true
     const token = localStorage.getItem("jwt")
     try {
-      const [voiceRes, replyRes] = await Promise.all([
+      const [voiceRes, replyRes, instrRes] = await Promise.all([
         fetch(`${BACKEND_URL}/voice-settings/settings`, {
           method: "PUT",
           headers: {
@@ -220,10 +237,19 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
           },
           body: JSON.stringify(agentSettings),
         }),
+        fetch(`${BACKEND_URL}/custom-instructions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ instruction: customInstruction }),
+        }),
       ])
 
       if (!voiceRes.ok) throw new Error(`Voice save failed (${voiceRes.status})`)
       if (!replyRes.ok) throw new Error(`Personality save failed (${replyRes.status})`)
+      if (!instrRes.ok) throw new Error(`Instruction save failed (${instrRes.status})`)
 
       setIsDirty(false)
       setSaveStatus("saved")
@@ -267,7 +293,7 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
 
   if (loading) {
     return (
-        <VoiceAgentSkeleton></VoiceAgentSkeleton>
+      <VoiceAgentSkeleton></VoiceAgentSkeleton>
     )
   }
 
@@ -291,6 +317,33 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
             </Button>
           </div>
         </div>
+
+        <Card>
+          <CardHeader className="text-[#081245]">
+            <CardTitle className="flex items-center gap-2">
+              <span>Extra instructies</span>
+              <InfoTooltip
+                label="Extra instructies"
+                content="Voeg richtlijnen toe die de AI altijd moet volgen, zoals terugbelverzoeken of disclaimers."
+              />
+            </CardTitle>
+            <CardDescription>Extra instructies die de ai bij elk gesprek volgt</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={customInstruction}
+              onChange={(e) => {
+                const value = e.target.value
+                setCustomInstruction(value)
+                if (initialLoadCompleteRef.current && !isSavingRef.current) {
+                  setIsDirty(true)
+                }
+              }}
+              rows={4}
+              placeholder="Bijvoorbeeld: 'Als het een vraag is over telefoon reparaties verbind het gesprek dan door'."
+            />
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="voice" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
@@ -332,11 +385,10 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
                     {Object.entries(VoiceId).map(([voiceKey, elevenLabsId]) => (
                       <div
                         key={voiceKey}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          voiceSettings?.voiceId === elevenLabsId
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${voiceSettings?.voiceId === elevenLabsId
                             ? "border-[#0ea5e9] bg-[#0ea5e9]/10"
                             : "border-gray-200 hover:border-gray-300"
-                        }`}
+                          }`}
                         onClick={() => updateVoiceSettings(prev => {
                           if (prev.voiceId === elevenLabsId) return prev
                           return { ...prev, voiceId: elevenLabsId }
@@ -412,17 +464,17 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
                       />
                     </div>
                     <Textarea
-                        id="greeting"
-                        value={voiceSettings.welcomePhrase}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          updateVoiceSettings(prev => {
-                            if (prev.welcomePhrase === value) return prev
-                            return { ...prev, welcomePhrase: value }
-                          })
-                        }}
-                        rows={3}
-                        placeholder="Enter the greeting message"
+                      id="greeting"
+                      value={voiceSettings.welcomePhrase}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        updateVoiceSettings(prev => {
+                          if (prev.welcomePhrase === value) return prev
+                          return { ...prev, welcomePhrase: value }
+                        })
+                      }}
+                      rows={3}
+                      placeholder="Enter the greeting message"
                     />
                     <p className="text-xs text-gray-500 mt-1">Deze boodschap wordt uitgesproken zodra het gesprek begint</p>
                   </div>
@@ -456,11 +508,10 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
                     {personalities.map((personality) => (
                       <div
                         key={personality.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          agentSettings.name === personality.id
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${agentSettings.name === personality.id
                             ? "border-blue-500 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300"
-                        }`}
+                          }`}
                         onClick={() => updateAgentSettings(prev => {
                           if (prev.name === personality.id) return prev
                           return {
@@ -481,110 +532,110 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
           </TabsContent>
 
           {/*<TabsContent value="behavior" className="space-y-6">*/}
-        {/*  <Card>*/}
-        {/*    <CardHeader>*/}
-        {/*      <CardTitle>Call Behavior</CardTitle>*/}
-        {/*      <CardDescription>Configure how your agent handles calls</CardDescription>*/}
-        {/*    </CardHeader>*/}
-        {/*    <CardContent className="space-y-6">*/}
-        {/*      <div>*/}
-        {/*        <Label htmlFor="max-duration">Maximum Call Duration (minutes)</Label>*/}
-        {/*        <Input*/}
-        {/*          id="max-duration"*/}
-        {/*          type="number"*/}
-        {/*          value={agentSettings.maxCallDuration}*/}
-        {/*          onChange={(e) =>*/}
-        {/*            setAgentSettings({ ...agentSettings, maxCallDuration: Number.parseInt(e.target.value) })*/}
-        {/*          }*/}
-        {/*          min="1"*/}
-        {/*          max="120"*/}
-        {/*        />*/}
-        {/*      </div>*/}
+          {/*  <Card>*/}
+          {/*    <CardHeader>*/}
+          {/*      <CardTitle>Call Behavior</CardTitle>*/}
+          {/*      <CardDescription>Configure how your agent handles calls</CardDescription>*/}
+          {/*    </CardHeader>*/}
+          {/*    <CardContent className="space-y-6">*/}
+          {/*      <div>*/}
+          {/*        <Label htmlFor="max-duration">Maximum Call Duration (minutes)</Label>*/}
+          {/*        <Input*/}
+          {/*          id="max-duration"*/}
+          {/*          type="number"*/}
+          {/*          value={agentSettings.maxCallDuration}*/}
+          {/*          onChange={(e) =>*/}
+          {/*            setAgentSettings({ ...agentSettings, maxCallDuration: Number.parseInt(e.target.value) })*/}
+          {/*          }*/}
+          {/*          min="1"*/}
+          {/*          max="120"*/}
+          {/*        />*/}
+          {/*      </div>*/}
 
-        {/*      <div className="space-y-4">*/}
-        {/*        <div className="flex items-center justify-between">*/}
-        {/*          <div>*/}
-        {/*            <Label>Call Recording</Label>*/}
-        {/*            <p className="text-sm text-gray-500">Record all calls for quality assurance</p>*/}
-        {/*          </div>*/}
-        {/*          <Switch*/}
-        {/*            checked={agentSettings.enableRecording}*/}
-        {/*            onCheckedChange={(checked) => setAgentSettings({ ...agentSettings, enableRecording: checked })}*/}
-        {/*          />*/}
-        {/*        </div>*/}
+          {/*      <div className="space-y-4">*/}
+          {/*        <div className="flex items-center justify-between">*/}
+          {/*          <div>*/}
+          {/*            <Label>Call Recording</Label>*/}
+          {/*            <p className="text-sm text-gray-500">Record all calls for quality assurance</p>*/}
+          {/*          </div>*/}
+          {/*          <Switch*/}
+          {/*            checked={agentSettings.enableRecording}*/}
+          {/*            onCheckedChange={(checked) => setAgentSettings({ ...agentSettings, enableRecording: checked })}*/}
+          {/*          />*/}
+          {/*        </div>*/}
 
-        {/*        <div className="flex items-center justify-between">*/}
-        {/*          <div>*/}
-        {/*            <Label>Live Transcription</Label>*/}
-        {/*            <p className="text-sm text-gray-500">Generate real-time transcripts</p>*/}
-        {/*          </div>*/}
-        {/*          <Switch*/}
-        {/*            checked={agentSettings.enableTranscription}*/}
-        {/*            onCheckedChange={(checked) => setAgentSettings({ ...agentSettings, enableTranscription: checked })}*/}
-        {/*          />*/}
-        {/*        </div>*/}
+          {/*        <div className="flex items-center justify-between">*/}
+          {/*          <div>*/}
+          {/*            <Label>Live Transcription</Label>*/}
+          {/*            <p className="text-sm text-gray-500">Generate real-time transcripts</p>*/}
+          {/*          </div>*/}
+          {/*          <Switch*/}
+          {/*            checked={agentSettings.enableTranscription}*/}
+          {/*            onCheckedChange={(checked) => setAgentSettings({ ...agentSettings, enableTranscription: checked })}*/}
+          {/*          />*/}
+          {/*        </div>*/}
 
-        {/*        <div className="flex items-center justify-between">*/}
-        {/*          <div>*/}
-        {/*            <Label>Sentiment Analysis</Label>*/}
-        {/*            <p className="text-sm text-gray-500">Analyze caller emotions and tone</p>*/}
-        {/*          </div>*/}
-        {/*          <Switch*/}
-        {/*            checked={agentSettings.enableSentimentAnalysis}*/}
-        {/*            onCheckedChange={(checked) =>*/}
-        {/*              setAgentSettings({ ...agentSettings, enableSentimentAnalysis: checked })*/}
-        {/*            }*/}
-        {/*          />*/}
-        {/*        </div>*/}
-        {/*      </div>*/}
-        {/*    </CardContent>*/}
-        {/*  </Card>*/}
-        {/*</TabsContent>*/}
+          {/*        <div className="flex items-center justify-between">*/}
+          {/*          <div>*/}
+          {/*            <Label>Sentiment Analysis</Label>*/}
+          {/*            <p className="text-sm text-gray-500">Analyze caller emotions and tone</p>*/}
+          {/*          </div>*/}
+          {/*          <Switch*/}
+          {/*            checked={agentSettings.enableSentimentAnalysis}*/}
+          {/*            onCheckedChange={(checked) =>*/}
+          {/*              setAgentSettings({ ...agentSettings, enableSentimentAnalysis: checked })*/}
+          {/*            }*/}
+          {/*          />*/}
+          {/*        </div>*/}
+          {/*      </div>*/}
+          {/*    </CardContent>*/}
+          {/*  </Card>*/}
+          {/*</TabsContent>*/}
 
-        {/*<TabsContent value="advanced" className="space-y-6">*/}
-        {/*  <Card>*/}
-        {/*    <CardHeader>*/}
-        {/*      <CardTitle>Advanced Settings</CardTitle>*/}
-        {/*      <CardDescription>Configure advanced AI and technical parameters</CardDescription>*/}
-        {/*    </CardHeader>*/}
-        {/*    <CardContent className="space-y-6">*/}
-        {/*      <div>*/}
-        {/*        <Label htmlFor="ai-model">AI Model</Label>*/}
-        {/*        <Select defaultValue="gpt-4">*/}
-        {/*          <SelectTrigger>*/}
-        {/*            <SelectValue />*/}
-        {/*          </SelectTrigger>*/}
-        {/*          <SelectContent>*/}
-        {/*            <SelectItem value="gpt-4">GPT-4 (Recommended)</SelectItem>*/}
-        {/*            <SelectItem value="gpt-3.5">GPT-3.5 Turbo</SelectItem>*/}
-        {/*            <SelectItem value="claude">Claude 3</SelectItem>*/}
-        {/*          </SelectContent>*/}
-        {/*        </Select>*/}
-        {/*      </div>*/}
+          {/*<TabsContent value="advanced" className="space-y-6">*/}
+          {/*  <Card>*/}
+          {/*    <CardHeader>*/}
+          {/*      <CardTitle>Advanced Settings</CardTitle>*/}
+          {/*      <CardDescription>Configure advanced AI and technical parameters</CardDescription>*/}
+          {/*    </CardHeader>*/}
+          {/*    <CardContent className="space-y-6">*/}
+          {/*      <div>*/}
+          {/*        <Label htmlFor="ai-model">AI Model</Label>*/}
+          {/*        <Select defaultValue="gpt-4">*/}
+          {/*          <SelectTrigger>*/}
+          {/*            <SelectValue />*/}
+          {/*          </SelectTrigger>*/}
+          {/*          <SelectContent>*/}
+          {/*            <SelectItem value="gpt-4">GPT-4 (Recommended)</SelectItem>*/}
+          {/*            <SelectItem value="gpt-3.5">GPT-3.5 Turbo</SelectItem>*/}
+          {/*            <SelectItem value="claude">Claude 3</SelectItem>*/}
+          {/*          </SelectContent>*/}
+          {/*        </Select>*/}
+          {/*      </div>*/}
 
-        {/*      <div>*/}
-        {/*        <Label htmlFor="response-timeout">Response Timeout (seconds)</Label>*/}
-        {/*        <Input id="response-timeout" type="number" defaultValue="5" min="1" max="30" />*/}
-        {/*      </div>*/}
+          {/*      <div>*/}
+          {/*        <Label htmlFor="response-timeout">Response Timeout (seconds)</Label>*/}
+          {/*        <Input id="response-timeout" type="number" defaultValue="5" min="1" max="30" />*/}
+          {/*      </div>*/}
 
-        {/*      <div>*/}
-        {/*        <Label htmlFor="webhook-url">Webhook URL</Label>*/}
-        {/*        <Input id="webhook-url" placeholder="https://your-app.com/webhook" />*/}
-        {/*        <p className="text-xs text-gray-500 mt-1">Receive real-time call events and data</p>*/}
-        {/*      </div>*/}
+          {/*      <div>*/}
+          {/*        <Label htmlFor="webhook-url">Webhook URL</Label>*/}
+          {/*        <Input id="webhook-url" placeholder="https://your-app.com/webhook" />*/}
+          {/*        <p className="text-xs text-gray-500 mt-1">Receive real-time call events and data</p>*/}
+          {/*      </div>*/}
 
-        {/*      <div>*/}
-        {/*        <Label htmlFor="custom-instructions">Custom Instructions</Label>*/}
-        {/*        <Textarea*/}
-        {/*          id="custom-instructions"*/}
-        {/*          placeholder="Add specific instructions for your AI agent..."*/}
-        {/*          rows={4}*/}
-        {/*        />*/}
-        {/*      </div>*/}
-        {/*    </CardContent>*/}
-        {/*  </Card>*/}
-        {/*</TabsContent>*/}
-      </Tabs>
+          {/*      <div>*/}
+          {/*        <Label htmlFor="custom-instructions">Custom Instructions</Label>*/}
+          {/*        <Textarea*/}
+          {/*          id="custom-instructions"*/}
+          {/*          placeholder="Add specific instructions for your AI agent..."*/}
+          {/*          rows={4}*/}
+          {/*        />*/}
+          {/*      </div>*/}
+          {/*    </CardContent>*/}
+          {/*  </Card>*/}
+          {/*</TabsContent>*/}
+        </Tabs>
       </div>
     </TooltipProvider>
   )
