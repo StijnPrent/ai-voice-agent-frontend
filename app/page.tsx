@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -251,6 +251,9 @@ export default function Dashboard() {
   const [overviewStats, setOverviewStats] = useState<OverviewStat[]>(PLACEHOLDER_STATS)
   const [statsLoading, setStatsLoading] = useState<boolean>(true)
   const [statsError, setStatsError] = useState<string | null>(null)
+  const voiceStateLoadedRef = useRef(false)
+  const companyTypeLoadedRef = useRef(false)
+  const updatesLoadedRef = useRef(false)
   const showAppointments = companyType === "appointments" || companyType === "both"
   const showEcommerce = companyType === "ecommerce" || companyType === "both"
   const visibleTabs = [
@@ -307,18 +310,32 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    if (voiceStateLoadedRef.current) {
+      return undefined
+    }
+    voiceStateLoadedRef.current = true
+    let cancelled = false
+
     // Load initial voice assistant state
-    (async () => {
+    ;void (async () => {
       try {
         const companyId = getCompanyIdFromJWT()
-        if (!companyId) return
+        if (!companyId || cancelled) return
         const state = await getVoiceAssistantState({ companyId })
-        setAssistantEnabled(!!state.enabled)
+        if (!cancelled) {
+          setAssistantEnabled(!!state.enabled)
+        }
       } catch (e) {
-        // Soft-fail: leave toggle off if unknown
-        console.warn("Failed to load voice assistant state", e)
+        if (!cancelled) {
+          // Soft-fail: leave toggle off if unknown
+          console.warn("Failed to load voice assistant state", e)
+        }
       }
     })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleAssistantToggle(checked: boolean) {
@@ -360,23 +377,35 @@ export default function Dashboard() {
   }, [applyCompanyType])
 
   useEffect(() => {
+    if (companyTypeLoadedRef.current) {
+      return undefined
+    }
+    companyTypeLoadedRef.current = true
+    let cancelled = false
+
     async function fetchCompanyType() {
       try {
         const token = localStorage.getItem("jwt")
-        if (!token) return
+        if (!token || cancelled) return
         const res = await fetch(`${BACKEND_URL}/company/details`, {
           headers: { Authorization: `Bearer ${token}` },
         })
-        if (!res.ok) return
+        if (!res.ok || cancelled) return
         const details = await res.json().catch(() => null)
-        if (details?.useType) {
+        if (!cancelled && details?.useType) {
           applyCompanyType(details.useType)
         }
       } catch (err) {
-        console.warn("Failed to load company type", err)
+        if (!cancelled) {
+          console.warn("Failed to load company type", err)
+        }
       }
     }
     fetchCompanyType()
+
+    return () => {
+      cancelled = true
+    }
   }, [applyCompanyType])
 
   useEffect(() => {
@@ -388,6 +417,11 @@ export default function Dashboard() {
 
   // 1) Fetch updates on mount
   useEffect(() => {
+    if (updatesLoadedRef.current) {
+      return undefined
+    }
+    updatesLoadedRef.current = true
+
     async function loadUpdates() {
       setLoadingUpdates(true)
       setError(null)
@@ -406,6 +440,8 @@ export default function Dashboard() {
       }
     }
     loadUpdates()
+
+    return () => {}
   }, [])
 
   // 2) Sync tab → URL (shallow so we don't refetch)
@@ -420,7 +456,7 @@ export default function Dashboard() {
 
   // 3) Load call metrics for overview stats
   useEffect(() => {
-    const controller = new AbortController()
+    let cancelled = false
 
     async function loadMetrics() {
       setStatsLoading(true)
@@ -433,7 +469,6 @@ export default function Dashboard() {
 
         const response = await fetch(`${BACKEND_URL}/analytics/calls/overview`, {
           headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -442,21 +477,22 @@ export default function Dashboard() {
 
         const payload = await response.json() as RawCallMetrics
         const nextStats = buildStatsFromPayload(payload)
-        setOverviewStats(nextStats)
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return
+        if (!cancelled) {
+          setOverviewStats(nextStats)
         }
+      } catch (error) {
         console.error(error)
         const message = error instanceof Error ? error.message : null
-        if (message === 'Geen sessietoken gevonden') {
-          setStatsError("Log opnieuw in om live belstatistieken te zien. We tonen voorbeelddata.")
-        } else {
-          setStatsError("Live belstatistieken konden niet worden geladen. We tonen voorbeelddata.")
+        if (!cancelled) {
+          if (message === 'Geen sessietoken gevonden') {
+            setStatsError("Log opnieuw in om live belstatistieken te zien. We tonen voorbeelddata.")
+          } else {
+            setStatsError("Live belstatistieken konden niet worden geladen. We tonen voorbeelddata.")
+          }
+          setOverviewStats(DEMO_STATS)
         }
-        setOverviewStats(DEMO_STATS)
       } finally {
-        if (!controller.signal.aborted) {
+        if (!cancelled) {
           setStatsLoading(false)
         }
       }
@@ -464,7 +500,9 @@ export default function Dashboard() {
 
     loadMetrics()
 
-    return () => controller.abort()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   function handleLogout() {

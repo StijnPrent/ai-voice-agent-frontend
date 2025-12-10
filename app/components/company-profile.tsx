@@ -134,6 +134,7 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
   const initialLoadCompleteRef = useRef(false);
   const isSavingRef = useRef(false);
   const lastPrefillRef = useRef<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const handleCompanyDataChange = useCallback((updater: (prev: CompanyData) => CompanyData) => {
     setCompanyData(prev => {
@@ -203,6 +204,9 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
 
   // Load data from backend
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     const token = localStorage.getItem("jwt")
     if (!token) {
       setIsLoading(false)
@@ -214,90 +218,63 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
 
     async function load() {
       try {
-        // Load company details
-        const detRes = await fetch(`${BACKEND_URL}/company/details`, { headers })
-        if (detRes.ok) {
-        const det = await detRes.json()
-        setCompanyData(prev => ({
-          ...prev,
-          name: det.name || prev.name,
-          industry: det.industry || prev.industry || "Technology",
-          size: det.size?.toString() || prev.size || "1-10",
-          description: det.description || prev.description,
-          founded: det.foundedYear?.toString() || prev.founded,
-        }))
-      }
+        const res = await fetch(`${BACKEND_URL}/company/profile`, { headers })
+        if (!res.ok) throw new Error("Failed to load company profile")
+        const profile = await res.json()
 
-      // Load company contacts
-      const contactRes = await fetch(`${BACKEND_URL}/company/contact`, { headers })
-      if (contactRes.ok) {
-        const contact = await contactRes.json()
-        if (contact) {
-          setCompanyData(prev => ({
-            ...prev,
-            website: contact.website || prev.website,
-            phone: contact.phone || prev.phone,
-            email: contact.contact_email || prev.email,
-            address: contact.address || prev.address,
-          }))
+        const details = profile?.details || {}
+        const contact = profile?.contact || {}
+        const hours: any[] = Array.isArray(profile?.hours) ? profile.hours : []
+        const info: any[] = Array.isArray(profile?.info) ? profile.info : []
+
+        const dayMap: Record<number, DayKey> = {
+          0: "zondag",
+          1: "maandag",
+          2: "dinsdag",
+          3: "woensdag",
+          4: "donderdag",
+          5: "vrijdag",
+          6: "zaterdag",
         }
-      }
 
-        // Load operating hours
-        const hrRes = await fetch(`${BACKEND_URL}/company/hours`, { headers })
-        if (hrRes.ok) {
-          const hrs = await hrRes.json()
-          const dayMap: Record<number, DayKey> = {
-            1: "maandag",
-            2: "dinsdag",
-            3: "woensdag",
-            4: "donderdag",
-            5: "vrijdag",
-            6: "zaterdag",
-            0: "zondag",
+        setCompanyData(prev => {
+          const updatedDays: Partial<OperatingDays> = { ...prev.operatingDays }
+          for (const h of hours) {
+            const dayKey = dayMap[h.dayOfWeek]
+            if (!dayKey) continue
+            const existing = prev.operatingDays[dayKey]
+            updatedDays[dayKey] = {
+              ...existing,
+              id: typeof h.id === "number" ? h.id : existing.id,
+              isOpen: Boolean(h.isOpen),
+              openTime: h.openTime ? h.openTime.slice(0, 5) : existing.openTime,
+              closeTime: h.closeTime ? h.closeTime.slice(0, 5) : existing.closeTime,
+            }
           }
 
+          return {
+            ...prev,
+            name: details.name || prev.name,
+            industry: details.industry || prev.industry || "Technology",
+            size: details.size?.toString() || prev.size || "1-10",
+            description: details.description || prev.description,
+            founded: details.foundedYear?.toString() || prev.founded,
+            website: contact.website || prev.website,
+            phone: contact.phone || prev.phone,
+            email: contact.contact_email || contact.email || prev.email,
+            address: contact.address || prev.address,
+            operatingDays: updatedDays as OperatingDays,
+          }
+        })
 
-          setCompanyData(prev => {
-            // Start with a shallow copy of the old days
-            const updatedDays: Partial<OperatingDays> = { ...prev.operatingDays }
-
-            // Fill in each day from the API
-            for (const h of hrs) {
-              const dayKey = dayMap[h.dayOfWeek]
-              if (!dayKey) continue
-
-              const existing = prev.operatingDays[dayKey]
-
-              updatedDays[dayKey] = {
-                ...existing,
-                id: typeof h.id === "number" ? h.id : existing.id,
-                isOpen: Boolean(h.isOpen),
-                openTime: h.openTime ? h.openTime.slice(0, 5) : existing.openTime,
-                closeTime: h.closeTime ? h.closeTime.slice(0, 5) : existing.closeTime,
-              }
-            }
-
-            return {
-              ...prev,
-              operatingDays: updatedDays as OperatingDays,
-            }
-          })
-        }
-
-        // Load custom info
-        const infRes = await fetch(`${BACKEND_URL}/company/info`, { headers });
-        if (infRes.ok) {
-          const infos = await infRes.json();
-          const customInfoFields = infos.map((i: any) => ({
-            id:         String(i.id),
-            value:      i.infoValue || i.value || "",
-            persistedId: i.id
-          }));
-          const nonEmptyFields = customInfoFields.filter((field: CustomInfoField) => field.value.trim() !== "");
-          const placeholderField: CustomInfoField = { id: `placeholder-${Date.now()}`, value: "" };
-          setCustomInfo([...nonEmptyFields, placeholderField]);
-        }
+        const customInfoFields = info.map((i: any) => ({
+          id: String(i.id ?? i.value ?? Date.now()),
+          value: i.value || i.infoValue || "",
+          persistedId: i.id,
+        }))
+        const nonEmptyFields = customInfoFields.filter((field: CustomInfoField) => field.value.trim() !== "")
+        const placeholderField: CustomInfoField = { id: `placeholder-${Date.now()}`, value: "" }
+        setCustomInfo([...nonEmptyFields, placeholderField])
       } catch (err) {
         console.error("Load error", err)
         setSaveStatus("error")
@@ -353,6 +330,8 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
   }, [])
 
   const saveData = useCallback(async (): Promise<boolean> => {
+    if (isSavingRef.current) return false;
+
     const token = localStorage.getItem("jwt");
     if (!token) return false;
 
@@ -375,38 +354,6 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
     };
 
     try {
-      // 1) Save company details
-      const detailsResponse = await fetch(
-          `${BACKEND_URL}/company/details`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({
-              name: companyData.name,
-              industry: companyData.industry,
-              size: companyData.size,
-              foundedYear: Number(companyData.founded) || new Date().getFullYear(),
-              description: companyData.description,
-            }),
-          }
-      );
-      if (!detailsResponse.ok) throw new Error("Failed to save company details");
-
-      // 2) Save company contacts
-      const contactBody = JSON.stringify({
-        website: companyData.website,
-        phone: companyData.phone,
-        email: companyData.email,
-        contact_email: companyData.email,
-        address: companyData.address,
-      });
-      const contactsResponse = await fetch(
-          `${BACKEND_URL}/company/contact`,
-          { method: "PUT", headers, body: contactBody }
-      );
-      if (!contactsResponse.ok) throw new Error("Failed to save company contacts");
-
-      // 3) Save operating hours (use record IDs)
       const dayMap: Record<DayKey, number> = {
         maandag: 1,
         dinsdag: 2,
@@ -415,76 +362,61 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
         vrijdag: 5,
         zaterdag: 6,
         zondag: 0,
-      };
-
-      for (const [dayKey, dayNumber] of Object.entries(dayMap)) {
-        const schedule = companyData.operatingDays[dayKey as DayKey];
-        const payload = JSON.stringify({
-          dayOfWeek: dayNumber,
-          isOpen: schedule.isOpen,
-          openTime: schedule.openTime,
-          closeTime: schedule.closeTime,
-        });
-
-        let res: Response;
-        if (schedule.id) {
-          // Update existing record
-          res = await fetch(
-              `${BACKEND_URL}/company/hours/${schedule.id}`,
-              { method: "PUT", headers, body: payload }
-          );
-        } else {
-          // Create new record if missing
-          res = await fetch(
-              `${BACKEND_URL}/company/hours`,
-              { method: "POST", headers, body: payload }
-          );
-        }
-
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error(`Error saving hours for ${dayKey}:`, errText);
-        }
       }
 
-      // 4) Save custom info fields
-      for (const field of customInfo) {
-        const trimmedValue = field.value.trim();
-        if (!trimmedValue) continue;
+      const hoursPayload = Object.entries(companyData.operatingDays).map(([key, schedule]) => ({
+        id: schedule.id,
+        dayOfWeek: dayMap[key as DayKey],
+        isOpen: schedule.isOpen,
+        openTime: schedule.openTime,
+        closeTime: schedule.closeTime,
+      }))
 
-        const payload: Record<string, unknown> = { value: trimmedValue };
+      const infoPayload = customInfo
+        .map((field) => ({ id: field.persistedId, value: field.value.trim() }))
+        .filter((f) => f.value)
 
-        if (field.persistedId) {
-          payload.id = field.persistedId;
-          const response = await fetch(
-              `${BACKEND_URL}/company/info`,
-              {
-                method: "PUT",
-                headers,
-                body: JSON.stringify(payload),
-              }
-          );
-          if (!response.ok) console.error("Error updating custom info", await response.text());
-        } else {
-          const response = await fetch(
-              `${BACKEND_URL}/company/info`,
-              {
-                method: "POST",
-                headers,
-                body: JSON.stringify(payload),
-              }
-          );
-          if (response.ok) {
-            const created = await response.json();
-            setCustomInfo(prev =>
-                prev.map(f =>
-                    f.id === field.id ? { ...f, persistedId: created.id, id: String(created.id) } : f
-                )
-            );
-          } else {
-            console.error("Error creating custom info", await response.text());
-          }
+      const payload = {
+        details: {
+          name: companyData.name,
+          industry: companyData.industry,
+          size: companyData.size,
+          foundedYear: Number(companyData.founded) || new Date().getFullYear(),
+          description: companyData.description,
+        },
+        contact: {
+          website: companyData.website,
+          phone: companyData.phone,
+          email: companyData.email,
+          contact_email: companyData.email,
+          address: companyData.address,
+        },
+        hours: hoursPayload,
+        info: infoPayload,
+      }
+
+      const profileResponse = await fetch(`${BACKEND_URL}/company/profile`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(payload),
+      })
+      if (!profileResponse.ok) throw new Error("Failed to save company profile")
+
+      // If backend returns updated profile, refresh local state (optional but safer)
+      try {
+        const updated = await profileResponse.json()
+        if (updated?.info) {
+          const customInfoFields = (Array.isArray(updated.info) ? updated.info : []).map((i: any) => ({
+            id: String(i.id ?? i.value ?? Date.now()),
+            value: i.value || i.infoValue || "",
+            persistedId: i.id,
+          }))
+          const nonEmptyFields = customInfoFields.filter((field: CustomInfoField) => field.value.trim() !== "")
+          const placeholderField: CustomInfoField = { id: `placeholder-${Date.now()}`, value: "" }
+          setCustomInfo([...nonEmptyFields, placeholderField])
         }
+      } catch {
+        /* if response has no json body, ignore */
       }
 
       // 5) All done
