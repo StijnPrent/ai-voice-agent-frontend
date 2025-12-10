@@ -260,6 +260,7 @@ export default function Dashboard() {
     { id: "overview", label: "Overzicht", icon: BarChart3 },
     { id: "company", label: "Bedrijf", icon: Building2 },
     showAppointments ? { id: "appointments", label: "Afspraken", icon: Calendar } : null,
+    showEcommerce ? { id: "ecommerce", label: "Product guides", icon: ShoppingBag } : null,
     { id: "integrations", label: "Integraties", icon: Plug },
     { id: "voice-agent", label: "Stem instellingen", icon: Phone },
     { id: "calls", label: "Gesprekken", icon: PhoneCall },
@@ -658,6 +659,13 @@ export default function Dashboard() {
             {showAppointments && (
               <TabsContent value="appointments">
                 <Appointments onDirtyChange={(dirty) => handleTabDirtyChange("appointments", dirty)} />
+              </TabsContent>
+            )}
+
+            {/* Product Guides Panel */}
+            {showEcommerce && (
+              <TabsContent value="ecommerce">
+                <ProductGuides />
               </TabsContent>
             )}
 
