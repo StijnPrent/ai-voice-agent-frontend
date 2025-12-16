@@ -707,6 +707,10 @@ export function CallTranscripts() {
             )}
             <ScrollArea className="h-[260px] pr-2">
               <div className="space-y-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Calltranscripties worden maximaal 14 dagen bewaard. De tekst komt uit automatische spraakherkenning,
+              dus spelling en getypte termen kunnen fouten bevatten; gebruik deze weergave als hulpmiddel.
+            </div>
                 {callsLoading && (
                   Array.from({ length: 4 }).map((_, index) => (
                     <div
@@ -893,4 +897,3 @@ export function CallTranscripts() {
 }
 
 export default CallTranscripts
-

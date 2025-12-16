@@ -9,7 +9,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
   CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Calendar, PhoneCall,
-  ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShoppingBag
+  ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShoppingBag,
+  BookCopy, FileText
 } from "lucide-react"
 import { CompanyProfile } from "@/app/components/company-profile"
 import { IntegrationsManager } from "./components/integrations-manager"
@@ -56,7 +57,10 @@ interface RawCallMetrics {
 
 const STAT_ORDER: StatIdentifier[] = ["avgDuration", "totalDuration", "callVolume"]
 
-  const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
+const CORE_TAB_IDS = new Set(["overview", "guides", "appointments", "company"])
+const SETUP_TAB_IDS = new Set(["integrations", "ai-settings"])
+
+const STAT_CONFIG: Record<StatIdentifier, OverviewStatConfig> = {
   avgDuration: {
     id: "avgDuration",
     title: "Gemiddelde gespreksduur",
@@ -251,6 +255,7 @@ export default function Dashboard() {
   const [overviewStats, setOverviewStats] = useState<OverviewStat[]>(PLACEHOLDER_STATS)
   const [statsLoading, setStatsLoading] = useState<boolean>(true)
   const [statsError, setStatsError] = useState<string | null>(null)
+  const [productGuideFormKey, setProductGuideFormKey] = useState(0)
   const voiceStateLoadedRef = useRef(false)
   const companyTypeLoadedRef = useRef(false)
   const updatesLoadedRef = useRef(false)
@@ -258,12 +263,12 @@ export default function Dashboard() {
   const showEcommerce = companyType === "ecommerce" || companyType === "both"
   const visibleTabs = [
     { id: "overview", label: "Overzicht", icon: BarChart3 },
-    { id: "company", label: "Bedrijf", icon: Building2 },
     showAppointments ? { id: "appointments", label: "Afspraken", icon: Calendar } : null,
-    showEcommerce ? { id: "ecommerce", label: "Product guides", icon: ShoppingBag } : null,
-    { id: "integrations", label: "Integraties", icon: Plug },
-    { id: "voice-agent", label: "Stem instellingen", icon: Phone },
+    showEcommerce ? { id: "guides", label: "Handleidingen", icon: BookCopy } : null,
+    { id: "company", label: "Bedrijf", icon: Building2 },
     { id: "calls", label: "Gesprekken", icon: PhoneCall },
+    { id: "integrations", label: "Integraties", icon: Plug },
+    { id: "ai-settings", label: "AI instellingen", icon: Phone },
   ].filter(Boolean) as { id: string; label: string; icon: any }[]
 
   const attemptTabChange = useCallback((nextTab: string) => {
@@ -311,14 +316,13 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    if (voiceStateLoadedRef.current) {
-      return undefined
-    }
-    voiceStateLoadedRef.current = true
     let cancelled = false
 
-    // Load initial voice assistant state
-    ;void (async () => {
+    const loadVoiceState = async () => {
+      if (voiceStateLoadedRef.current) {
+        return
+      }
+      voiceStateLoadedRef.current = true
       try {
         const companyId = getCompanyIdFromJWT()
         if (!companyId || cancelled) return
@@ -328,14 +332,17 @@ export default function Dashboard() {
         }
       } catch (e) {
         if (!cancelled) {
-          // Soft-fail: leave toggle off if unknown
           console.warn("Failed to load voice assistant state", e)
         }
+        voiceStateLoadedRef.current = false
       }
-    })()
+    }
+
+    void loadVoiceState()
 
     return () => {
       cancelled = true
+      voiceStateLoadedRef.current = false
     }
   }, [])
 
@@ -554,12 +561,24 @@ export default function Dashboard() {
               className="grid w-full"
               style={{ gridTemplateColumns: `repeat(${visibleTabs.length || 1}, minmax(0,1fr))` }}
             >
-              {visibleTabs.map(({ id, label, icon: Icon }) => (
-                <TabsTrigger key={id} value={id} className="flex items-center justify-center space-x-1">
-                  <Icon className="h-4 w-4" />
-                  <span>{label}</span>
-                </TabsTrigger>
-              ))}
+              {visibleTabs.map(({ id, label, icon: Icon }) => {
+                const isCore = CORE_TAB_IDS.has(id)
+                const isSetup = SETUP_TAB_IDS.has(id)
+                return (
+                  <TabsTrigger
+                    key={id}
+                    value={id}
+                    className={cn(
+                      "flex items-center justify-center space-x-1",
+                      isCore && "font-semibold text-[#081245] data-[state=inactive]:text-[#081245b3] data-[state=active]:bg-[#eef2ff] data-[state=active]:text-[#081245]",
+                      isSetup && "text-slate-500 data-[state=active]:text-slate-600 data-[state=active]:bg-slate-100"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{label}</span>
+                  </TabsTrigger>
+                )
+              })}
             </TabsList>
 
             {/* Overview Panel */}
@@ -631,24 +650,34 @@ export default function Dashboard() {
                     <CardTitle>Snelle acties</CardTitle>
                     <CardDescription>Snelkoppelingen</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => attemptTabChange("integrations")}
-                    >
-                      <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => attemptTabChange("voice-agent")}
-                    >
-                      <Settings className="mr-2 h-4 w-4"/> Stem instellingen
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                <CardContent className="space-y-3">
+                  <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        attemptTabChange("ecommerce")
+                        setProductGuideFormKey((prev) => prev + 1)
+                      }}
+                  >
+                    <FileText className="mr-2 h-4 w-4"/> Nieuwe handleiding
+                  </Button>
+                  <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => attemptTabChange("integrations")}
+                  >
+                    <CirclePlus className="mr-2 h-4 w-4" /> Add Integration
+                  </Button>
+                  <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => attemptTabChange("voice-agent")}
+                  >
+                    <Settings className="mr-2 h-4 w-4"/> Stem instellingen
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
             </TabsContent>
 
             {/* Company Panel */}
@@ -664,8 +693,8 @@ export default function Dashboard() {
 
             {/* Product Guides Panel */}
             {showEcommerce && (
-              <TabsContent value="ecommerce">
-                <ProductGuides />
+              <TabsContent value="guides">
+                <ProductGuides autoOpenGuideFormKey={productGuideFormKey} />
               </TabsContent>
             )}
 
@@ -675,7 +704,7 @@ export default function Dashboard() {
             </TabsContent>
 
             {/* Voice Agent Panel */}
-            <TabsContent value="voice-agent">
+            <TabsContent value="ai-settings">
               <VoiceAgentSettings onDirtyChange={(dirty) => handleTabDirtyChange("voice-agent", dirty)} />
             </TabsContent>
 

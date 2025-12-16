@@ -9,9 +9,11 @@ export function authHeaders() {
 
 /* --------------------------- Voice Assistant --------------------------- */
 export interface VoiceAssistantState {
-    companyId: string;
-    twilioNumber: string | null;
+    companyId?: string;
+    twilioNumber?: string | null;
     enabled: boolean;
+    outsideHoursOnly?: boolean;
+    transfersEnabled?: boolean;
 }
 
 export interface VoiceAssistantStateResponse extends VoiceAssistantState {
@@ -28,7 +30,14 @@ export async function getVoiceAssistantState(params: { companyId?: string | numb
     return res.json() as Promise<VoiceAssistantState>;
 }
 
-export async function setVoiceAssistantState(body: { enabled: boolean; companyId?: string | number; twilioNumber?: string }) {
+export async function setVoiceAssistantState(body: {
+    enabled?: boolean;
+    outsideHoursOnly?: boolean;
+    transfersEnabled?: boolean;
+    allowTransfer?: boolean;
+    companyId?: string | number;
+    twilioNumber?: string;
+}) {
     const res = await fetch(`${BACKEND_URL}/voice/assistant/state`, {
         method: "POST",
         headers: authHeaders(),

@@ -10,18 +10,34 @@ import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Mic, Volume2, Brain, MessageSquare, Play, Pause, Settings } from "lucide-react"
-import { VoiceId } from "@/enums/VoiceId";
-import { BACKEND_URL } from "@/lib/api";
-import { ReplyStyle, VoiceSettings } from "@/lib/types/types";
-import { ReplyStyleEnum } from "@/enums/ReplyStyleEnum";
-import { ReplyStyleDescriptionEnum } from "@/enums/ReplyStyleDescriptionEnum";
-import VoiceAgentSkeleton from "@/components/skeletons/VoiceAgentSkeleton";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { InfoTooltip } from "@/components/info-tooltip";
+import { Loader2, Mic, Volume2, Brain, MessageSquare, Play, Pause, Settings } from "lucide-react"
+import { VoiceId } from "@/enums/VoiceId"
+import { BACKEND_URL } from "@/lib/api"
+import { ReplyStyle, VoiceSettings } from "@/lib/types/types"
+import { ReplyStyleEnum } from "@/enums/ReplyStyleEnum"
+import { ReplyStyleDescriptionEnum } from "@/enums/ReplyStyleDescriptionEnum"
+import VoiceAgentSkeleton from "@/components/skeletons/VoiceAgentSkeleton"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { InfoTooltip } from "@/components/info-tooltip"
+import { getVoiceAssistantState, setVoiceAssistantState } from "@/lib/api-config"
 
 interface VoiceAgentSettingsProps {
   onDirtyChange?: (dirty: boolean) => void
+}
+
+function getCompanyIdFromJWT(): string | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+  const token = localStorage.getItem("jwt")
+  if (!token) return null
+  try {
+    const [, payload] = token.split(".")
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+    return json.companyId ?? json.cid ?? json.company_id ?? null
+  } catch {
+    return null
+  }
 }
 
 export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
@@ -55,6 +71,10 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
   const [customInstructionId, setCustomInstructionId] = useState<number | null>(null)
 
   const [agentSettings, setAgentSettings] = useState<ReplyStyle>(defaultReplyStyle)
+  const [assistantState, setAssistantState] = useState<{ enabled: boolean; outsideHoursOnly: boolean; transfersEnabled: boolean } | null>(null)
+  const [assistantLoading, setAssistantLoading] = useState(true)
+  const [assistantSaving, setAssistantSaving] = useState(false)
+  const [assistantError, setAssistantError] = useState<string | null>(null)
 
   const updateVoiceSettings = useCallback((updater: (prev: VoiceSettings) => VoiceSettings) => {
     setVoiceSettings(prev => {
@@ -209,6 +229,41 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
     fetchAllSettings()
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAssistantState() {
+      setAssistantLoading(true)
+      setAssistantError(null)
+      try {
+        const companyId = getCompanyIdFromJWT()
+        if (!companyId) {
+          throw new Error("Geen companyId beschikbaar")
+        }
+        const state = await getVoiceAssistantState({ companyId })
+        if (cancelled) return
+          setAssistantState({
+            enabled: state.enabled,
+            outsideHoursOnly: !!state.outsideHoursOnly,
+            transfersEnabled: !!state.transfersEnabled,
+          })
+      } catch (err: any) {
+        if (cancelled) return
+        setAssistantError(err?.message || "Kon status niet ophalen")
+      } finally {
+        if (!cancelled) {
+          setAssistantLoading(false)
+        }
+      }
+    }
+
+    loadAssistantState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const handleSave = async () => {
     if (!initialLoadCompleteRef.current || !isDirty) {
       return
@@ -262,6 +317,52 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
       setSaving(false)
     }
   }
+
+  const persistAssistantUpdate = useCallback(
+    async (changes: { enabled?: boolean; outsideHoursOnly?: boolean }) => {
+      const companyId = getCompanyIdFromJWT()
+      if (!companyId) {
+        setAssistantError("Geen companyId beschikbaar")
+        return
+      }
+      setAssistantSaving(true)
+      setAssistantError(null)
+      try {
+        const response = await setVoiceAssistantState({ companyId, ...changes })
+        setAssistantState({
+          enabled: response.enabled,
+          outsideHoursOnly: !!response.outsideHoursOnly,
+          transfersEnabled: !!response.transfersEnabled,
+        })
+      } catch (err: any) {
+        setAssistantError(err?.message || "Kon assistent niet bijwerken")
+      } finally {
+        setAssistantSaving(false)
+      }
+    },
+    [],
+  )
+
+  const handleAssistantEnabledChange = useCallback(
+    (enabled: boolean) => {
+      persistAssistantUpdate({ enabled })
+    },
+    [persistAssistantUpdate],
+  )
+
+  const handleAssistantOutsideHoursChange = useCallback(
+    (outsideHoursOnly: boolean) => {
+      persistAssistantUpdate({ outsideHoursOnly })
+    },
+    [persistAssistantUpdate],
+  )
+
+  const handleAssistantTransfersChange = useCallback(
+    (transfersEnabled: boolean) => {
+      persistAssistantUpdate({ transfersEnabled, allowTransfer: transfersEnabled })
+    },
+    [persistAssistantUpdate],
+  )
 
 
   useEffect(() => {
@@ -317,6 +418,75 @@ export function VoiceAgentSettings({ onDirtyChange }: VoiceAgentSettingsProps) {
             </Button>
           </div>
         </div>
+
+        <Card>
+          <CardHeader className="text-[#081245]">
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              <span>AI Assistent</span>
+            </CardTitle>
+            <CardDescription>Schakel Birdy in en bepaal wanneer de assistent spreekt.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {assistantError && (
+              <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {assistantError}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#081245]">Staat aan</p>
+                <p className="text-xs text-gray-500">Zet de stemagent aan of uit voor dit bedrijf.</p>
+              </div>
+              <Switch
+                checked={assistantState?.enabled ?? false}
+                disabled={assistantLoading || assistantSaving}
+                onCheckedChange={handleAssistantEnabledChange}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#081245]">Alleen buiten kantooruren</p>
+                <p className="text-xs text-gray-500">Laat de assistent alleen reageren buiten openingstijden.</p>
+              </div>
+              <Switch
+                checked={assistantState?.outsideHoursOnly ?? false}
+                disabled={assistantLoading || assistantSaving}
+                onCheckedChange={handleAssistantOutsideHoursChange}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#081245]">Call transfers toegestaan</p>
+                <p className="text-xs text-gray-500">
+                  Schakel in als de assistent gesprekken mag doorverbinden (transfers).
+                </p>
+              </div>
+              <Switch
+                checked={assistantState?.transfersEnabled ?? false}
+                disabled={assistantLoading || assistantSaving}
+                onCheckedChange={handleAssistantTransfersChange}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
+              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                {assistantState?.enabled ? "Actief" : "Uit"}
+              </Badge>
+              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                {assistantState?.outsideHoursOnly ? "Alleen buiten kantooruren" : "Altijd beschikbaar"}
+              </Badge>
+              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                {assistantState?.transfersEnabled ? "Transfers aan" : "Transfers uit"}
+              </Badge>
+              {(assistantLoading || assistantSaving) && (
+                <span className="flex items-center gap-1 text-gray-500">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {assistantLoading ? "Status laden..." : "Wijzigingen opslaan..."}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="text-[#081245]">
