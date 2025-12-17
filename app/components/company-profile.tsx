@@ -870,110 +870,112 @@ export function CompanyProfile({ onDirtyChange, prefillData, onSaveReady, showSa
                     { day: "Zaterdag", key: "zaterdag" as DayKey },
                     { day: "Zondag", key: "zondag" as DayKey },
                   ].map(({ day, key }) => (
-                      <div key={key} className="flex items-center space-x-4 p-3 border rounded-lg">
-                        <div className="w-28 flex items-center gap-2">
-                          <Label className="text-sm font-medium">{day}</Label>
-                          <InfoTooltip
-                            label={`Openingstijden ${day}`}
-                            content="Gebruik de knop om de dag open of dicht te zetten en pas vervolgens de tijden aan."
-                            iconClassName="h-3.5 w-3.5"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                              type="button"
-                              variant={companyData.operatingDays[key].isOpen ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => {
-                                clearValidationError("operatingDays")
-                                handleCompanyDataChange(prev => {
-                                  const currentDay = prev.operatingDays[key]
-                                  return {
-                                    ...prev,
-                                    operatingDays: {
-                                      ...prev.operatingDays,
-                                      [key]: {
-                                        ...currentDay,
-                                        isOpen: !currentDay.isOpen,
+                      <div key={key} className="p-3 border rounded-lg">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap sm:gap-4">
+                          <div className="flex items-center gap-2 sm:w-32 shrink-0">
+                            <Label className="text-sm font-medium">{day}</Label>
+                            <InfoTooltip
+                              label={`Openingstijden ${day}`}
+                              content="Gebruik de knop om de dag open of dicht te zetten en pas vervolgens de tijden aan."
+                              iconClassName="h-3.5 w-3.5"
+                            />
+                          </div>
+                          <div className="flex items-center">
+                            <Button
+                                type="button"
+                                variant={companyData.operatingDays[key].isOpen ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                  clearValidationError("operatingDays")
+                                  handleCompanyDataChange(prev => {
+                                    const currentDay = prev.operatingDays[key]
+                                    return {
+                                      ...prev,
+                                      operatingDays: {
+                                        ...prev.operatingDays,
+                                        [key]: {
+                                          ...currentDay,
+                                          isOpen: !currentDay.isOpen,
+                                        },
                                       },
-                                    },
-                                  }
-                                })
-                              }}
-                          >
-                            {companyData.operatingDays[key].isOpen ? "Open" : "Dicht"}
-                          </Button>
+                                    }
+                                  })
+                                }}
+                            >
+                              {companyData.operatingDays[key].isOpen ? "Open" : "Dicht"}
+                            </Button>
+                          </div>
+                          {companyData.operatingDays[key].isOpen && (
+                              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <Label className="text-sm">Van:</Label>
+                                    <InfoTooltip
+                                      label="Openingstijd"
+                                      content="Selecteer het tijdstip waarop jullie openen. Gebruik de 24-uurs notatie."
+                                      iconClassName="h-3.5 w-3.5"
+                                    />
+                                  </div>
+                                  <Input
+                                      type="time"
+                                      value={companyData.operatingDays[key].openTime}
+                                      onChange={(e) => {
+                                        const value = e.target.value
+                                        clearValidationError("operatingDays")
+                                        handleCompanyDataChange(prev => {
+                                          const currentDay = prev.operatingDays[key]
+                                          if (currentDay.openTime === value) return prev
+                                          return {
+                                            ...prev,
+                                            operatingDays: {
+                                              ...prev.operatingDays,
+                                              [key]: {
+                                                ...currentDay,
+                                                openTime: value,
+                                              },
+                                            },
+                                          }
+                                        })
+                                      }}
+                                      className={`w-full sm:w-28 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <Label className="text-sm">Tot:</Label>
+                                    <InfoTooltip
+                                      label="Sluitingstijd"
+                                      content="Kies het tijdstip waarop jullie sluiten. Zorg dat dit later is dan de openingstijd."
+                                      iconClassName="h-3.5 w-3.5"
+                                    />
+                                  </div>
+                                  <Input
+                                      type="time"
+                                      value={companyData.operatingDays[key].closeTime}
+                                      onChange={(e) => {
+                                        const value = e.target.value
+                                        clearValidationError("operatingDays")
+                                        handleCompanyDataChange(prev => {
+                                          const currentDay = prev.operatingDays[key]
+                                          if (currentDay.closeTime === value) return prev
+                                          return {
+                                            ...prev,
+                                            operatingDays: {
+                                              ...prev.operatingDays,
+                                              [key]: {
+                                                ...currentDay,
+                                                closeTime: value,
+                                              },
+                                            },
+                                          }
+                                        })
+                                      }}
+                                      className={`w-full sm:w-28 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                                  />
+                                </div>
+                              </div>
+                          )}
                         </div>
-                        {companyData.operatingDays[key].isOpen && (
-                            <>
-                              <div className="flex items-center space-x-2">
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-sm">Van:</Label>
-                                  <InfoTooltip
-                                    label="Openingstijd"
-                                    content="Selecteer het tijdstip waarop jullie openen. Gebruik de 24-uurs notatie."
-                                    iconClassName="h-3.5 w-3.5"
-                                  />
-                                </div>
-                                <Input
-                                    type="time"
-                                    value={companyData.operatingDays[key].openTime}
-                                    onChange={(e) => {
-                                      const value = e.target.value
-                                      clearValidationError("operatingDays")
-                                      handleCompanyDataChange(prev => {
-                                        const currentDay = prev.operatingDays[key]
-                                        if (currentDay.openTime === value) return prev
-                                        return {
-                                          ...prev,
-                                          operatingDays: {
-                                            ...prev.operatingDays,
-                                            [key]: {
-                                              ...currentDay,
-                                              openTime: value,
-                                            },
-                                          },
-                                        }
-                                      })
-                                    }}
-                                    className={`w-32 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                                />
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-sm">Tot:</Label>
-                                  <InfoTooltip
-                                    label="Sluitingstijd"
-                                    content="Kies het tijdstip waarop jullie sluiten. Zorg dat dit later is dan de openingstijd."
-                                    iconClassName="h-3.5 w-3.5"
-                                  />
-                                </div>
-                                <Input
-                                    type="time"
-                                    value={companyData.operatingDays[key].closeTime}
-                                    onChange={(e) => {
-                                      const value = e.target.value
-                                      clearValidationError("operatingDays")
-                                      handleCompanyDataChange(prev => {
-                                        const currentDay = prev.operatingDays[key]
-                                        if (currentDay.closeTime === value) return prev
-                                        return {
-                                          ...prev,
-                                          operatingDays: {
-                                            ...prev.operatingDays,
-                                            [key]: {
-                                              ...currentDay,
-                                              closeTime: value,
-                                            },
-                                          },
-                                        }
-                                      })
-                                    }}
-                                    className={`w-32 ${validationErrors.operatingDays ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                                />
-                              </div>
-                            </>
-                        )}
                       </div>
                   ))}
                 </div>

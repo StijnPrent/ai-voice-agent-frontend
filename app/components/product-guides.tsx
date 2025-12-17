@@ -148,9 +148,9 @@ export function ProductGuides({ autoOpenGuideFormKey }: { autoOpenGuideFormKey?:
         const metadata =
             metadataEntries.length > 0
                 ? metadataEntries.reduce<Record<string, string>>((acc, cur) => {
-                      acc[cur.key.trim()] = cur.value.trim()
-                      return acc
-                  }, {})
+                    acc[cur.key.trim()] = cur.value.trim()
+                    return acc
+                }, {})
                 : undefined
         const payload: Record<string, unknown> = {
             name: form.name.trim(),
@@ -211,11 +211,13 @@ export function ProductGuides({ autoOpenGuideFormKey }: { autoOpenGuideFormKey?:
                             <div className="flex items-center gap-2">
                                 <div className="flex flex-col">
                                     <span className="text-[0.6rem] uppercase tracking-wide text-slate-500">Scenario</span>
-                                    <p className="text-lg font-semibold text-[#081245] leading-snug line-clamp-1">{product.name}</p>
+                                    <div className="flex flex-row gap-2 items-center">
+                                        <p className="text-lg font-semibold text-[#081245] leading-snug line-clamp-1">{product.name}</p>
+                                        <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                            {(product.status ?? "published").toString()}
+                                        </Badge>
+                                    </div>
                                 </div>
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                    {(product.status ?? "published").toString()}
-                                </Badge>
                             </div>
                             {product.summary && (
                                 <p className="text-sm text-gray-600 line-clamp-1">{product.summary}</p>

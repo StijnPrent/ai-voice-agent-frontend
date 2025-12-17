@@ -7,6 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Bird, BarChart3, Building2, Plug, Phone, User, Activity,
   CirclePlus, RefreshCcw, CheckCircle, Clock, Settings, Calendar, PhoneCall,
   ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShoppingBag,
@@ -252,6 +262,8 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>(initialTab)
   const [companyType, setCompanyType] = useState<CompanyType>("both")
   const [tabUnsaved, setTabUnsaved] = useState<Record<string, boolean>>({})
+  const [pendingTab, setPendingTab] = useState<string | null>(null)
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
   const [overviewStats, setOverviewStats] = useState<OverviewStat[]>(PLACEHOLDER_STATS)
   const [statsLoading, setStatsLoading] = useState<boolean>(true)
   const [statsError, setStatsError] = useState<string | null>(null)
@@ -276,10 +288,9 @@ export default function Dashboard() {
 
     const currentDirty = tabUnsaved[activeTab] ?? false
     if (currentDirty) {
-      const confirmLeave = window.confirm("Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je dit tabblad wilt verlaten?")
-      if (!confirmLeave) {
-        return
-      }
+      setPendingTab(nextTab)
+      setShowUnsavedDialog(true)
+      return
     }
 
     setActiveTab(nextTab)
@@ -557,29 +568,31 @@ export default function Dashboard() {
 
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={attemptTabChange} className="space-y-6">
-            <TabsList
-              className="grid w-full"
-              style={{ gridTemplateColumns: `repeat(${visibleTabs.length || 1}, minmax(0,1fr))` }}
-            >
-              {visibleTabs.map(({ id, label, icon: Icon }) => {
-                const isCore = CORE_TAB_IDS.has(id)
-                const isSetup = SETUP_TAB_IDS.has(id)
-                return (
-                  <TabsTrigger
-                    key={id}
-                    value={id}
-                    className={cn(
-                      "flex items-center justify-center space-x-1",
-                      isCore && "font-semibold text-[#081245] data-[state=inactive]:text-[#081245b3] data-[state=active]:bg-[#eef2ff] data-[state=active]:text-[#081245]",
-                      isSetup && "text-slate-500 data-[state=active]:text-slate-600 data-[state=active]:bg-slate-100"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{label}</span>
-                  </TabsTrigger>
-                )
-              })}
+            <div className="w-full overflow-x-auto pb-1">
+              <TabsList
+                className="flex min-w-max gap-2 sm:grid sm:min-w-0"
+                style={{ gridTemplateColumns: `repeat(${visibleTabs.length || 1}, minmax(0,1fr))` }}
+              >
+                {visibleTabs.map(({ id, label, icon: Icon }) => {
+                  const isCore = CORE_TAB_IDS.has(id)
+                  const isSetup = SETUP_TAB_IDS.has(id)
+                  return (
+                    <TabsTrigger
+                      key={id}
+                      value={id}
+                      className={cn(
+                        "flex items-center justify-center space-x-1 whitespace-nowrap px-3 py-2 rounded-md shrink-0 sm:shrink",
+                        isCore && "font-semibold text-[#081245] data-[state=inactive]:text-[#081245b3] data-[state=active]:bg-[#eef2ff] data-[state=active]:text-[#081245]",
+                        isSetup && "text-slate-500 data-[state=active]:text-slate-600 data-[state=active]:bg-slate-100"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{label}</span>
+                    </TabsTrigger>
+                  )
+                })}
             </TabsList>
+            </div>
 
             {/* Overview Panel */}
             <TabsContent value="overview" className="space-y-6">
@@ -714,6 +727,38 @@ export default function Dashboard() {
             </TabsContent>
           </Tabs>
         </div>
+
+        <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Niet-opgeslagen wijzigingen</AlertDialogTitle>
+              <AlertDialogDescription>
+                Je verlaat dit tabblad zonder op te slaan. Wil je doorgaan?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setPendingTab(null)
+                  setShowUnsavedDialog(false)
+                }}
+              >
+                Blijf hier
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (pendingTab) {
+                    setActiveTab(pendingTab)
+                  }
+                  setPendingTab(null)
+                  setShowUnsavedDialog(false)
+                }}
+              >
+                Verlaat zonder opslaan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   )
 }

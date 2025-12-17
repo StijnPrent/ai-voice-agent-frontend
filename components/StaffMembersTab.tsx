@@ -61,6 +61,15 @@ export default function StaffMembersTab({
     applyAvailabilityTemplate,
 }: StaffMembersTabProps) {
     const hasCalendars = calendars.length > 0
+    const dayLabel: Record<DayKey, string> = {
+        monday: "Maandag",
+        tuesday: "Dinsdag",
+        wednesday: "Woensdag",
+        thursday: "Donderdag",
+        friday: "Vrijdag",
+        saturday: "Zaterdag",
+        sunday: "Zondag",
+    }
     return (
         <>
             <Card className="border-slate-200 shadow-xl">
@@ -193,43 +202,45 @@ export default function StaffMembersTab({
                             </div>
 
                             <div className="space-y-2 md:pl-4">
-                                <Label className="text-base font-medium">Weekly Availability</Label>
+                                <Label className="text-base font-medium">Wekelijkse beschikbaarheid</Label>
                                 <div className="space-y-2 mt-2 bg-gray-50 p-4 rounded-lg">
                                     {DAY_ORDER.map((day) => {
                                         const schedule = newStaffMember.availability[day];
                                         const primaryBlock = normalizeBlocks(schedule.blocks)[0];
                                         return (
-                                            <div key={day} className="flex items-center gap-3">
-                                                <div className="w-24 text-sm font-medium capitalize">{day}</div>
+                                            <div key={day} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                                <div className="flex items-center gap-2 sm:w-28">
+                                                    <div className="text-sm font-medium">{dayLabel[day]}</div>
+                                                </div>
                                                 <Button
                                                     type="button"
                                                     variant={schedule.isWorking ? "default" : "outline"}
                                                     size="sm"
-                                                    className="w-20 h-8 text-xs"
+                                                    className="w-full sm:w-20 h-8 text-xs"
                                                     onClick={() => {
                                                         const next = { ...newStaffMember.availability };
                                                         next[day] = { ...next[day], isWorking: !next[day].isWorking };
                                                         setNewStaffMember({ ...newStaffMember, availability: next });
                                                     }}
                                                 >
-                                                    {schedule.isWorking ? "Working" : "Off"}
+                                                    {schedule.isWorking ? "Werkdag" : "Vrij"}
                                                 </Button>
                                                 {schedule.isWorking && (
-                                                    <>
+                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
                                                         <Input
                                                             type="time"
                                                             value={primaryBlock.startTime}
                                                             onChange={e => updateNewStaffTimeBlock(day, "startTime", e.target.value)}
-                                                            className="w-24 h-8 text-sm"
+                                                            className="w-full sm:w-24 h-8 text-sm"
                                                         />
-                                                        <span className="text-sm text-gray-500">to</span>
+                                                        <span className="text-sm text-gray-500">tot</span>
                                                         <Input
                                                             type="time"
                                                             value={primaryBlock.endTime}
                                                             onChange={e => updateNewStaffTimeBlock(day, "endTime", e.target.value)}
-                                                            className="w-24 h-8 text-sm"
+                                                            className="w-full sm:w-24 h-8 text-sm"
                                                         />
-                                                    </>
+                                                    </div>
                                                 )}
                                             </div>
                                         )
@@ -328,39 +339,41 @@ export default function StaffMembersTab({
 
                                                 {/* Edit weekly availability */}
                                                 <div>
-                                                    <Label className="text-sm font-medium">Weekly Availability</Label>
+                                                    <Label className="text-sm font-medium">Wekelijkse beschikbaarheid</Label>
                                                     <div className="space-y-2 mt-2 bg-gray-50 p-3 rounded-lg">
                                                         {DAY_ORDER.map(day => {
                                                             const schedule = staffDraft.availability[day];
                                                             const primaryBlock = normalizeBlocks(schedule.blocks)[0];
                                                             return (
-                                                                <div key={day} className="flex items-center gap-2">
-                                                                    <div className="w-20 text-xs font-medium capitalize">{day.slice(0,3)}</div>
+                                                                <div key={day} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                                                                    <div className="flex items-center gap-2 sm:w-24">
+                                                                        <div className="text-xs font-medium">{dayLabel[day].slice(0,3)}</div>
+                                                                    </div>
                                                                     <Button
                                                                         type="button"
                                                                         variant={schedule.isWorking ? "default" : "outline"}
                                                                         size="sm"
-                                                                        className="w-16 h-7 text-xs"
+                                                                        className="w-full sm:w-16 h-7 text-xs"
                                                                         onClick={() => updateDraftAvailability(day, { isWorking: !schedule.isWorking })}
                                                                     >
-                                                                        {schedule.isWorking ? "Work" : "Off"}
+                                                                        {schedule.isWorking ? "Werkdag" : "Vrij"}
                                                                     </Button>
                                                                     {schedule.isWorking && (
-                                                                        <>
+                                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
                                                                             <Input
                                                                                 type="time"
                                                                                 value={primaryBlock.startTime}
                                                                                 onChange={e => updateDraftTimeBlock(day, "startTime", e.target.value)}
-                                                                                className="w-20 h-7 text-xs"
+                                                                                className="w-full sm:w-20 h-7 text-xs"
                                                                             />
-                                                                            <span className="text-xs text-gray-500">to</span>
+                                                                            <span className="text-xs text-gray-500">tot</span>
                                                                             <Input
                                                                                 type="time"
                                                                                 value={primaryBlock.endTime}
                                                                                 onChange={e => updateDraftTimeBlock(day, "endTime", e.target.value)}
-                                                                                className="w-20 h-7 text-xs"
+                                                                                className="w-full sm:w-20 h-7 text-xs"
                                                                             />
-                                                                        </>
+                                                                        </div>
                                                                     )}
                                                                 </div>
                                                             )
@@ -383,7 +396,7 @@ export default function StaffMembersTab({
                                                             setStaffDraft(null)
                                                         }}
                                                     >
-                                                        Cancel
+                                                        Annuleren
                                                     </Button>
                                                 </div>
                                             </div>
@@ -433,9 +446,9 @@ export default function StaffMembersTab({
                                                     {/* Availability Display */}
                                                     <div className="bg-gray-50 p-3 rounded-lg">
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <span className="text-xs font-medium text-gray-700">Weekly Schedule</span>
+                                                            <span className="text-xs font-medium text-gray-700">Wekelijks schema</span>
                                                             <Badge variant="outline" className="text-xs">
-                                                                {Object.values(s.availability).filter(d => d.isWorking).length} days/week
+                                                                {Object.values(s.availability).filter(d => d.isWorking).length} dagen/week
                                                             </Badge>
                                                         </div>
                                                         <div className="space-y-1">
@@ -444,7 +457,7 @@ export default function StaffMembersTab({
                                                                 const block = normalizeBlocks(dayEntry.blocks)[0];
                                                                 return (
                                                                     <div key={d} className="flex justify-between text-xs">
-                                                                        <span className="capitalize font-medium">{d}</span>
+                                                                        <span className="font-medium">{dayLabel[d]}</span>
                                                                         <span className="text-gray-600">
                                                                             {block.startTime} - {block.endTime}
                                                                         </span>
@@ -452,14 +465,14 @@ export default function StaffMembersTab({
                                                                 )
                                                             })}
                                                             {Object.values(s.availability).every(d => !d.isWorking) && (
-                                                                <div className="text-xs text-gray-500 text-center py-2">No working days set</div>
+                                                                <div className="text-xs text-gray-500 text-center py-2">Geen werkdagen ingesteld</div>
                                                             )}
                                                         </div>
                                                     </div>
 
                                                     <div className="flex items-center space-x-2">
                                                         <div className={`w-2 h-2 rounded-full ${active ? "bg-green-500" : "bg-gray-400"}`} />
-                                                        <span className="text-xs text-gray-500">{active ? "Active" : "Inactive"}</span>
+                                                        <span className="text-xs text-gray-500">{active ? "Actief" : "Inactief"}</span>
                                                     </div>
                                                 </div>
                                             </div>
